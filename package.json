@@ -9,7 +9,7 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -22,11 +22,42 @@
         "title": "List Salesforce Commands"
       },
       {
+        "command": "salesforce-deployment-guard.retrieve",
+        "title": "SF Guard: Retrieve from Org",
+        "icon": "$(cloud-download)"
+      },
+      {
         "command": "salesforce-deployment-guard.safeDeploy",
-        "title": "Safe Deploy",
-        "icon": "${shield}"
+        "title": "SF Guard: Safe Deploy to Org",
+        "icon": "$(shield)"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "salesforce-deployment-guard.retrieve",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "group": "salesforce@1"
+        },
+        {
+          "command": "salesforce-deployment-guard.safeDeploy",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "group": "salesforce@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "salesforce-deployment-guard.retrieve",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "group": "salesforce@1"
+        },
+        {
+          "command": "salesforce-deployment-guard.safeDeploy",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "group": "salesforce@2"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

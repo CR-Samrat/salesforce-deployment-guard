@@ -5,12 +5,13 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 
 const execAsync = promisify(exec);
+const RETRIEVE_MAP_KEY = 'sfGuard.retrieveTimestamps';
 
 interface ConflictInfo {
     hasConflict: boolean;
     modifiedBy?: string;
     modifiedDate?: string;
-    currentUser?: string;
+    reason?: string;
 }
 
 //Checking if the file is a salesforce metadata file
@@ -18,6 +19,27 @@ function isSalesforceFile(filePath: string): boolean {
 	const salesforceExtensions = ['.cls','.trigger','.apex'];
 	const fileExtension = path.extname(filePath).toLowerCase();
 	return salesforceExtensions.includes(fileExtension);
+}
+
+function getRetrieveMap(context: vscode.ExtensionContext): Map<string, Date> {
+    const stored = context.workspaceState.get<Record<string, string>>(RETRIEVE_MAP_KEY, {});
+    const map = new Map<string, Date>();
+    
+    for (const [key, value] of Object.entries(stored)) {
+        map.set(key, new Date(value));
+    }
+    
+    return map;
+}
+
+function saveRetrieveMap(context: vscode.ExtensionContext, map: Map<string, Date>) {
+    const obj: Record<string, string> = {};
+    
+    map.forEach((date, key) => {
+        obj[key] = date.toISOString();
+    });
+    
+    context.workspaceState.update(RETRIEVE_MAP_KEY, obj);
 }
 
 async function getCurrentSalesforceUsername(): Promise<string | null> {
@@ -48,7 +70,7 @@ async function getCurrentSalesforceUsername(): Promise<string | null> {
     }
 }
 
-async function checkForConflicts(filePath: string): Promise<ConflictInfo> {
+async function checkForConflicts(filePath: string, context: vscode.ExtensionContext): Promise<ConflictInfo> {
     try {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
         
@@ -56,7 +78,7 @@ async function checkForConflicts(filePath: string): Promise<ConflictInfo> {
             return { hasConflict: false };
         }
 
-		// Get current logged-in user
+		//Get current logged-in user
         const currentUser = await getCurrentSalesforceUsername();
 		if (!currentUser) {
             console.log('Could not determine current user');
@@ -102,30 +124,49 @@ async function checkForConflicts(filePath: string): Promise<ConflictInfo> {
 
         const orgRecord = result.result.records[0];
         const modifiedByName = orgRecord.LastModifiedBy?.Name || 'Unknown';
-        const modifiedByUsername = orgRecord.LastModifiedBy?.Username || '';
-        const modifiedDate = new Date(orgRecord.LastModifiedDate).toLocaleString();
+		const modifiedByUsername = orgRecord.LastModifiedBy?.Username || '';
+        const orgLastModified = new Date(orgRecord.LastModifiedDate);
 
-        console.log(`Last modified by: ${modifiedByName} (${modifiedByUsername})`);
+        console.log(`Last modified in org: ${modifiedByName} (${orgLastModified.toISOString()})`);
         
-        // Check if current user was the last to modify
-        const isCurrentUser =
-            modifiedByUsername.toLowerCase() === currentUser.toLowerCase() ||
-            modifiedByName.toLowerCase().includes(currentUser.toLowerCase()) ||
-            currentUser.toLowerCase().includes(modifiedByUsername.toLowerCase());
+        // Get retrieve map
+        const retrieveMap = getRetrieveMap(context);
+        const lastRetrieved = retrieveMap.get(fileName);
 
-        const hasConflict = !isCurrentUser;
+        if (!lastRetrieved) {
+			// Check if current user was the last to modify
+        	const isCurrentUser = modifiedByUsername.toLowerCase() === currentUser.toLowerCase() ||
+    								modifiedByName.toLowerCase().includes(currentUser.toLowerCase()) ||
+    								currentUser.toLowerCase().includes(modifiedByUsername.toLowerCase());
 
-        if (hasConflict) {
-            console.log(`⚠️ Conflict: File was last modified by ${modifiedByName}, not you!`);
-        } else {
-            console.log(`✅ Safe: You (${currentUser}) were the last to modify this file`);
+        	const hasConflict = !isCurrentUser;
+        	if (hasConflict) {
+            	console.log(`⚠️ Conflict: File was last modified by ${modifiedByName}, not you!`);
+        	} else {
+            	console.log(`✅ Safe: You (${currentUser}) were the last to modify this file`);
+        	}
+
+        	return {
+            	hasConflict,
+            	modifiedBy: modifiedByName,
+            	modifiedDate: orgLastModified.toLocaleString(),
+            	reason: hasConflict ? 'File modified in org after last retrieve' : undefined
+        	};
         }
+
+        // Check if org was modified after our last retrieve
+        const hasConflict = orgLastModified > lastRetrieved;
+
+        console.log(`📊 Conflict Check for ${fileName}:`);
+        console.log(`   Last Retrieved: ${lastRetrieved.toLocaleString()}`);
+        console.log(`   Org Modified: ${orgLastModified.toLocaleString()}`);
+        console.log(`   Conflict: ${hasConflict ? 'YES ⚠️' : 'NO ✅'}`);
 
         return {
             hasConflict,
             modifiedBy: modifiedByName,
-            modifiedDate,
-            currentUser
+            modifiedDate: orgLastModified.toLocaleString(),
+            reason: hasConflict ? 'File modified in org after last retrieve' : undefined
         };
 
     } catch (error) {
@@ -152,99 +193,139 @@ export function activate(context: vscode.ExtensionContext) {
     	vscode.window.showInformationMessage(`Found ${sfCommands.length} SF commands. Check console.`);
 	});
 
-	const safeDeploy = vscode.commands.registerCommand("salesforce-deployment-guard.safeDeploy", async () => {
-		const editor = vscode.window.activeTextEditor;
+	const trackedRetrieve = vscode.commands.registerCommand(
+        "salesforce-deployment-guard.retrieve",
+        async (uri?: vscode.Uri) => {
+            try {
+                // Get file URI
+                if (!uri) {
+                    const editor = vscode.window.activeTextEditor;
+                    if (!editor) {
+                        vscode.window.showErrorMessage("No file is open");
+                        return;
+                    }
+                    uri = editor.document.uri;
+                }
 
-		//Show error if no file is open
-		if (!editor) {
-			vscode.window.showErrorMessage("No file is open. Please open a Salesforce metadata file to deploy.");
-			return;
-		}
+                const filePath = uri.fsPath;
+                const fileName = path.basename(filePath);
+                const fileBaseName = path.basename(filePath, path.extname(filePath));
 
-		const filePath = editor.document.fileName;
-		const fileName = path.basename(filePath);
+                if (!isSalesforceFile(filePath)) {
+                    vscode.window.showErrorMessage(`${fileName} is not a Salesforce file`);
+                    return;
+                }
 
-		//Check if the file is a salesforce metadata file
-		if (!isSalesforceFile(filePath)) {
-			vscode.window.showErrorMessage(`The file ${fileName} is not a Salesforce metadata file. Please open a valid file to deploy.`);
-			return;
-		}
+                vscode.window.showInformationMessage(`⬇️ Retrieving ${fileName}...`);
 
-		//First save the file if there are unsaved changes
-		if(editor.document.isDirty) {
-			await editor.document.save();
-			vscode.window.showInformationMessage(`💾 Saved ${fileName}`);
-		}
+                // Call the original SFDX retrieve command
+                await vscode.commands.executeCommand('sf.retrieve.source.path', uri);
 
-		let conflictInfo: ConflictInfo | undefined;
+                // Update retrieve timestamp
+                const retrieveMap = getRetrieveMap(context);
+                retrieveMap.set(fileBaseName, new Date());
+                saveRetrieveMap(context, retrieveMap);
 
-		//Simulate deployment process
-		await vscode.window.withProgress({
-			location: vscode.ProgressLocation.Notification,
-			title: "Checking for conflicts...",
-			cancellable: false
-		}, async (progress) => {
-			progress.report({ increment: 30 });
+                console.log(`✅ Tracked retrieve for ${fileBaseName} at ${new Date().toLocaleString()}`);
+                vscode.window.showInformationMessage(`✅ Retrieved and synced: ${fileName}`);
 
-			conflictInfo = await checkForConflicts(filePath);
+            } catch (error) {
+                vscode.window.showErrorMessage(`❌ Retrieve failed: ${error}`);
+            }
+        }
+    );
 
-			progress.report({ increment: 100});
-		});
+	const safeDeploy = vscode.commands.registerCommand(
+        "salesforce-deployment-guard.safeDeploy",
+        async () => {
+            const editor = vscode.window.activeTextEditor;
 
-		//If conflicts found, show warning and abort deployment
-		if (conflictInfo?.hasConflict) {
-        	const choice = await vscode.window.showWarningMessage(
-        		`⚠️ WARNING: Someone Else Modified This File!\n\n` +
-        		`File: "${fileName}"\n` +
-        		`Last modified by: ${conflictInfo.modifiedBy}\n` +
-        		`Modified on: ${conflictInfo.modifiedDate}\n\n` +
-        		`You are logged in as: ${conflictInfo.currentUser}\n\n` +
-        		`Deploying will overwrite ${conflictInfo.modifiedBy}'s changes.\n` +
-        		`Consider retrieving first to review their changes.`,
-        		{ modal: true },
-        		'🔄 Retrieve First',
-        		'🚀 Deploy Anyway',
-        		'❌ Cancel'
-    		);
+            if (!editor) {
+                vscode.window.showErrorMessage("No file is open");
+                return;
+            }
 
-        	if (choice === '❌ Cancel' || !choice) {
-            	vscode.window.showInformationMessage('Deployment cancelled.');
-            	return;
-        	}
+            const filePath = editor.document.fileName;
+            const fileName = path.basename(filePath);
+            const fileBaseName = path.basename(filePath, path.extname(filePath));
 
-        	if (choice === '🔄 Retrieve First') {
-            	try {
-                	vscode.window.showInformationMessage(`⬇️ Retrieving latest version of ${fileName}...`);
-                	await vscode.commands.executeCommand('sf.retrieve.source.path',
-                    	vscode.Uri.file(filePath)
-                	);
-                	vscode.window.showInformationMessage(`✅ Retrieved ${fileName} successfully! Please review changes before deploying.`);
-            	} catch (error) {
-                	vscode.window.showErrorMessage(`❌ Retrieve failed: ${error}`);
-            	}
-            	return;
-        	}
+            if (!isSalesforceFile(filePath)) {
+                vscode.window.showErrorMessage(`${fileName} is not a Salesforce file`);
+                return;
+            }
 
-        	// If "Deploy Anyway" was chosen, continue to deployment
-        	vscode.window.showInformationMessage('⚠️ Proceeding with deployment despite conflict...');
-    	}
+            // Save if dirty
+            if (editor.document.isDirty) {
+                await editor.document.save();
+            }
 
-		//For now doing directly deployed. Later will check if any conflicts found
-		vscode.window.showInformationMessage(`🚀 Deploying ${fileName}...`);
+            // Check for conflicts
+            let conflictInfo: ConflictInfo | undefined;
+            
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "🔍 Checking for conflicts...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 30 });
+                conflictInfo = await checkForConflicts(filePath, context);
+                progress.report({ increment: 100 });
+            });
 
-		//Execute the deployment command from salesforce cli
-		try {
-			await vscode.commands.executeCommand('sf.deploy.source.path',
-				vscode.Uri.file(filePath)
-			);
-			vscode.window.showInformationMessage(`✅ Deployment of ${fileName} succeeded!`);
-		} catch (error) {
-			vscode.window.showErrorMessage(`❌ Deployment of ${fileName} failed: ${error}`);
-			return;
-		}
-	} );
+            if (conflictInfo?.hasConflict) {
+                const choice = await vscode.window.showWarningMessage(
+                    `⚠️ WARNING: ${conflictInfo.reason}\n\n` +
+                    `File: "${fileName}"\n` +
+                    `Last modified by: ${conflictInfo.modifiedBy}\n` +
+                    `Modified on: ${conflictInfo.modifiedDate}\n\n` +
+                    `Please retrieve the file first to sync with Salesforce Guard.`,
+                    { modal: true },
+                    '⬇️ Retrieve Now',
+                    '🚀 Deploy Anyway',
+                    '❌ Cancel'
+                );
 
-	context.subscriptions.push(disposable, safeDeploy, testListCommands);
+                if (choice === '❌ Cancel' || !choice) {
+                    vscode.window.showInformationMessage('Deployment cancelled');
+                    return;
+                }
+
+                if (choice === '⬇️ Retrieve Now') {
+                    // Call our tracked retrieve command
+                    await vscode.commands.executeCommand(
+                        'salesforce-deployment-guard.retrieve',
+                        vscode.Uri.file(filePath)
+                    );
+                    vscode.window.showInformationMessage('✅ File retrieved. You can now deploy safely.');
+                    return;
+                }
+
+                // If "Deploy Anyway" - continue to deployment
+            }
+
+            // Deploy the file
+            vscode.window.showInformationMessage(`🚀 Deploying ${fileName}...`);
+
+            try {
+                await vscode.commands.executeCommand('sf.deploy.source.path',
+                    vscode.Uri.file(filePath)
+                );
+
+                // Update retrieve timestamp after successful deploy (sync)
+                const retrieveMap = getRetrieveMap(context);
+                retrieveMap.set(fileBaseName, new Date());
+                saveRetrieveMap(context, retrieveMap);
+
+                console.log(`✅ Updated sync timestamp for ${fileBaseName} after deployment`);
+                vscode.window.showInformationMessage(`✅ ${fileName} deployed successfully!`);
+
+            } catch (error) {
+                vscode.window.showErrorMessage(`❌ Deployment failed: ${error}`);
+            }
+        }
+    );
+
+	context.subscriptions.push(disposable, safeDeploy, testListCommands, trackedRetrieve);
 }
 
 export function deactivate() {}
