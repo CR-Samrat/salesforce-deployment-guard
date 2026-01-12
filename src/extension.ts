@@ -3,6 +3,7 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
+import { get } from 'http';
 
 const execAsync = promisify(exec);
 const RETRIEVE_MAP_KEY = 'sfGuard.retrieveTimestamps';
@@ -70,6 +71,59 @@ async function getCurrentSalesforceUsername(): Promise<string | null> {
     }
 }
 
+async function retrieveOrgVersion(filePath: string): Promise<string | null>{
+	try {
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+		const fileName = path.basename(filePath, path.extname(filePath));
+		const fileExt = path.extname(filePath).toLowerCase();
+
+		//create temp directory
+		const tempDir = path.join(workspaceFolder || '', '.sfguard-temp');
+		if(!fs.existsSync(tempDir)){
+			fs.mkdirSync(tempDir, { recursive: true });
+		}
+
+		const tempFilePath = path.join(tempDir, `${fileName}_ORG${fileExt}`);
+
+		// query org for file content
+		const metadataType = getMetadataType(fileExt);
+		const query = `SELECT Body FROM ${metadataType} WHERE Name='${fileName}'`;
+
+		const { stdout } = await execAsync(
+			`sf data query --query "${query}" --json`,
+			{ cwd: workspaceFolder }
+		);
+
+		const result = JSON.parse(stdout);
+
+		if (result.status === 0 && result.result?.records?.length) {
+			const body = result.result.records[0].Body || '';
+
+			//write to temp file
+			fs.writeFileSync(tempFilePath, body, 'utf8');
+			return tempFilePath;
+		}
+
+		return null;
+	} catch (error) {
+		console.error('Error retrieving org version:', error);
+		return null;
+	}
+}
+
+function getMetadataType(fileExt: string): string {
+	switch (fileExt) {
+		case '.cls':
+			return 'ApexClass';
+		case '.trigger':
+			return 'ApexTrigger';
+		case '.apex':
+			return 'ApexPage';
+		default:
+			return '';
+	}
+}
+
 async function checkForConflicts(filePath: string, context: vscode.ExtensionContext): Promise<ConflictInfo> {
     try {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
@@ -91,20 +145,11 @@ async function checkForConflicts(filePath: string, context: vscode.ExtensionCont
         const fileExt = path.extname(filePath).toLowerCase();
         
         // Determine metadata type
-        let metadataType = '';
-        switch (fileExt) {
-            case '.cls':
-                metadataType = 'ApexClass';
-                break;
-            case '.trigger':
-                metadataType = 'ApexTrigger';
-                break;
-            case '.apex':
-                metadataType = 'ApexPage';
-                break;
-            default:
-                return { hasConflict: false };
-        }
+        let metadataType = getMetadataType(fileExt);
+		if (!metadataType) {
+			console.log(`Unsupported file type for conflict check: ${fileExt}`);
+			return { hasConflict: false };
+		}
 
         // Query Salesforce org for this file's info
         const query = `SELECT LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM ${metadataType} WHERE Name='${fileName}'`;
@@ -174,6 +219,80 @@ async function checkForConflicts(filePath: string, context: vscode.ExtensionCont
         // On error, allow deployment (fail-open)
         return { hasConflict: false };
     }
+}
+
+async function showDiffAndResolve(localFilePath: string, context: vscode.ExtensionContext) : Promise<boolean> {
+	try {
+		//Get org version of the file
+		const orgFilePath = await retrieveOrgVersion(localFilePath);
+
+		if(!orgFilePath){
+			vscode.window.showErrorMessage('Could not retrieve org version for diff.');
+			return false;
+		}
+
+		const fileName = path.basename(localFilePath);
+
+		//Open difference editor
+		await vscode.commands.executeCommand(
+			'vscode.diff',
+			vscode.Uri.file(orgFilePath),
+			vscode.Uri.file(localFilePath),
+			`Difference: Org ⟷ Local - ${fileName}`
+		);
+
+		//Show instructions
+		const choice = await vscode.window.showInformationMessage(
+			`📊Compare your changes with the org version. \n\n` +
+			`Right (You): Your local changes\n` +
+			`Left (Org): Current org version\n\n` +
+			`After reviewing, please choose how to proceed.`,
+			{ modal: true },
+			'⬅️ Use Org Version',
+			'➡️ Keep Local Version',
+			'✏️ Merge Manually',
+			'❌ Cancel'
+		);
+
+		if(choice === '⬅️ Use Org Version'){
+			//Overwrite local file with org version
+			const orgContent = fs.readFileSync(orgFilePath, 'utf8');
+			fs.writeFileSync(localFilePath, orgContent, 'utf8');
+
+			//update retrieve map
+			const retrieveMap = getRetrieveMap(context);
+			const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
+			retrieveMap.set(fileBaseName, new Date());
+			saveRetrieveMap(context, retrieveMap);
+
+			vscode.window.showInformationMessage(`✅ Local file updated with org version: ${fileName}`);
+			return true;
+		}
+
+		if(choice === '➡️ Keep Local Version'){
+			vscode.window.showInformationMessage(`✅ Keeping your local changes for: ${fileName}`);
+			return true;
+		}
+
+		if(choice === '✏️ Merge Manually'){
+			vscode.window.showInformationMessage(`🔧 Please manually merge the changes for: ${fileName}`);
+
+			// Update retrieve map since they're manually resolving
+			const retrieveMap = getRetrieveMap(context);
+			const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
+			retrieveMap.set(fileBaseName, new Date());
+			saveRetrieveMap(context, retrieveMap);
+
+			return false;
+		}
+
+		//Cancelled
+		return false;
+	} catch (error) {
+		console.error('Error showing diff:', error);
+		vscode.window.showErrorMessage(`Failed to show difference view. Reason : ${error}`);
+		return false;
+	}
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -274,16 +393,28 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (conflictInfo?.hasConflict) {
                 const choice = await vscode.window.showWarningMessage(
-                    `⚠️ WARNING: ${conflictInfo.reason}\n\n` +
+                    `⚠️ WARNING: Conflict Detected! ${conflictInfo.reason}\n\n` +
                     `File: "${fileName}"\n` +
                     `Last modified by: ${conflictInfo.modifiedBy}\n` +
                     `Modified on: ${conflictInfo.modifiedDate}\n\n` +
                     `Please retrieve the file first to sync with Salesforce Guard.`,
                     { modal: true },
+					'🔍 Resolve Conflict & Deploy',
                     '⬇️ Retrieve Now',
                     '🚀 Deploy Anyway',
                     '❌ Cancel'
                 );
+
+				if(choice === '🔍 Resolve Conflict & Deploy'){
+					//Show difference and let user resolve
+					const resolved = await showDiffAndResolve(filePath, context);
+					if(resolved){
+						vscode.window.showInformationMessage('✅ Conflict resolved. Proceeding to deploy...');
+					} else {
+						vscode.window.showInformationMessage('❌ Deployment cancelled due to unresolved conflict.');
+						return;
+					}
+				}
 
                 if (choice === '❌ Cancel' || !choice) {
                     vscode.window.showInformationMessage('Deployment cancelled');
