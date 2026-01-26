@@ -36,24 +36,24 @@
       "explorer/context": [
         {
           "command": "salesforce-deployment-guard.retrieve",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css",
           "group": "salesforce@1"
         },
         {
           "command": "salesforce-deployment-guard.safeDeploy",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css",
           "group": "salesforce@2"
         }
       ],
       "editor/context": [
         {
           "command": "salesforce-deployment-guard.retrieve",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css",
           "group": "salesforce@1"
         },
         {
           "command": "salesforce-deployment-guard.safeDeploy",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex",
+          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .apex || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css",
           "group": "salesforce@2"
         }
       ]

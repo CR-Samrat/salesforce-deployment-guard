@@ -3,7 +3,6 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
-import { get } from 'http';
 
 const execAsync = promisify(exec);
 const RETRIEVE_MAP_KEY = 'sfGuard.retrieveTimestamps';
@@ -17,8 +16,12 @@ interface ConflictInfo {
 
 //Checking if the file is a salesforce metadata file
 function isSalesforceFile(filePath: string): boolean {
-	const salesforceExtensions = ['.cls','.trigger','.apex'];
+	const salesforceExtensions = ['.cls','.trigger','.apex','.js','.html','.css'];
 	const fileExtension = path.extname(filePath).toLowerCase();
+
+	if(['.js','.html','.css'].includes(fileExtension)) {
+		return filePath.includes('/lwc/') || filePath.includes('\\lwc\\');
+	}
 	return salesforceExtensions.includes(fileExtension);
 }
 
@@ -74,7 +77,9 @@ async function getCurrentSalesforceUsername(): Promise<string | null> {
 async function retrieveOrgVersion(filePath: string): Promise<string | null>{
 	try {
 		const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-		const fileName = path.basename(filePath, path.extname(filePath));
+		const metadataInfo = getMetadataInfo(filePath);
+		const metadataType = metadataInfo?.type || '';
+		const fileName = metadataInfo?.name || '';
 		const fileExt = path.extname(filePath).toLowerCase();
 
 		//create temp directory
@@ -83,24 +88,40 @@ async function retrieveOrgVersion(filePath: string): Promise<string | null>{
 			fs.mkdirSync(tempDir, { recursive: true });
 		}
 
-		const tempFilePath = path.join(tempDir, `${fileName}_ORG${fileExt}`);
+		const tempFilePath = path.join(tempDir, `${metadataInfo?.name}_ORG${fileExt}`);
+		let orgContent = '';
 
-		// query org for file content
-		const metadataType = getMetadataType(fileExt);
-		const query = `SELECT Body FROM ${metadataType} WHERE Name='${fileName}'`;
+		if(metadataType === 'LightningComponentBundle'){
+			const query = `SELECT Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName='${fileName}' and FilePath LIKE '%${fileExt}'`;
 
-		const { stdout } = await execAsync(
-			`sf data query --query "${query}" --json`,
-			{ cwd: workspaceFolder }
-		);
+			const { stdout } = await execAsync(
+				`sf data query --use-tooling-api --query "${query}" --json`,
+				{ cwd: workspaceFolder }
+			);
 
-		const result = JSON.parse(stdout);
+			const result = JSON.parse(stdout);
 
-		if (result.status === 0 && result.result?.records?.length) {
-			const body = result.result.records[0].Body || '';
+			if (result.status === 0 && result.result?.records?.length) {
+				orgContent = result.result.records[0].Source || '';
+			}
+		}else{
+			const query = `SELECT Body FROM ${metadataType} WHERE Name='${fileName}'`;
 
+			const { stdout } = await execAsync(
+				`sf data query --query "${query}" --json`,
+				{ cwd: workspaceFolder }
+			);
+
+			const result = JSON.parse(stdout);
+
+			if (result.status === 0 && result.result?.records?.length) {
+				orgContent = result.result.records[0].Body || '';
+			}
+		}
+
+		if(orgContent){
 			//write to temp file
-			fs.writeFileSync(tempFilePath, body, 'utf8');
+			fs.writeFileSync(tempFilePath, orgContent, 'utf8');
 			return tempFilePath;
 		}
 
@@ -111,17 +132,32 @@ async function retrieveOrgVersion(filePath: string): Promise<string | null>{
 	}
 }
 
-function getMetadataType(fileExt: string): string {
-	switch (fileExt) {
-		case '.cls':
-			return 'ApexClass';
-		case '.trigger':
-			return 'ApexTrigger';
-		case '.apex':
-			return 'ApexPage';
-		default:
-			return '';
+function getMetadataInfo(filePath: string): {type: string, name: string} | null {
+	const fileExt = path.extname(filePath).toLowerCase();
+	const fileName = path.basename(filePath, fileExt);
+	
+	if(fileExt === '.cls'){
+		return {type: 'ApexClass', name: fileName};
 	}
+	if(fileExt === '.trigger'){
+		return {type: 'ApexTrigger', name: fileName};
+	}
+	if(fileExt === '.apex'){
+		return {type: 'ApexPage', name: fileName};
+	}
+
+	if(['.html','.js','.css'].includes(fileExt)){
+		const pathParts = filePath.split(/[/\\]/);
+		const lwcIndex = pathParts.findIndex(part => part === 'lwc');
+
+		if(lwcIndex !== -1 && lwcIndex < pathParts.length - 1){
+			const componentName = pathParts[lwcIndex+1];
+
+			return {type: 'LightningComponentBundle', name: componentName};
+		}
+	}
+
+	return null;
 }
 
 async function checkForConflicts(filePath: string, context: vscode.ExtensionContext): Promise<ConflictInfo> {
@@ -140,22 +176,29 @@ async function checkForConflicts(filePath: string, context: vscode.ExtensionCont
         }
 		console.log("Current Salesforce User:", currentUser);
 
-        // Get file metadata name and type
-        const fileName = path.basename(filePath, path.extname(filePath));
-        const fileExt = path.extname(filePath).toLowerCase();
-        
-        // Determine metadata type
-        let metadataType = getMetadataType(fileExt);
-		if (!metadataType) {
+        // Get file metadata name and type and Determine metadata type
+		const fileExt = path.extname(filePath).toLowerCase();
+		let metadataInfo = getMetadataInfo(filePath);
+
+		if (!metadataInfo) {
 			console.log(`Unsupported file type for conflict check: ${fileExt}`);
 			return { hasConflict: false };
 		}
 
+		const {type, name} = metadataInfo;
+		const metadataType = type;
+		const fileName = name;
+
         // Query Salesforce org for this file's info
-        const query = `SELECT LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM ${metadataType} WHERE Name='${fileName}'`;
+		let query = '';
+		if(type === 'LightningComponentBundle'){
+			query = `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM LightningComponentBundle WHERE DeveloperName='${fileName}'`;
+		}else{
+			query = `SELECT LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM ${metadataType} WHERE Name='${fileName}'`;
+		}
         
         const { stdout } = await execAsync(
-            `sf data query --query "${query}" --json`,
+            `sf data query --use-tooling-api --query "${query}" --json`,
             { cwd: workspaceFolder }
         );
 
@@ -298,20 +341,6 @@ async function showDiffAndResolve(localFilePath: string, context: vscode.Extensi
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, "salesforce-deployment-guard" is now active!');
 
-	const disposable = vscode.commands.registerCommand('salesforce-deployment-guard.helloWorld', () => {
-		vscode.window.showInformationMessage('Hello World from salesforce-deployment-guard!');
-	});
-
-	const testListCommands = vscode.commands.registerCommand('salesforce-deployment-guard.listSFCommands', async () => {
-    	const allCommands = await vscode.commands.getCommands();
-    	const sfCommands = allCommands.filter(cmd =>
-        	cmd.startsWith('sfdx') || cmd.startsWith('sf.')
-    	);
-
-    	console.log('Available Salesforce Commands:', sfCommands);
-    	vscode.window.showInformationMessage(`Found ${sfCommands.length} SF commands. Check console.`);
-	});
-
 	const trackedRetrieve = vscode.commands.registerCommand(
         "salesforce-deployment-guard.retrieve",
         async (uri?: vscode.Uri) => {
@@ -335,17 +364,30 @@ export function activate(context: vscode.ExtensionContext) {
                     return;
                 }
 
-                vscode.window.showInformationMessage(`⬇️ Retrieving ${fileName}...`);
+				const metadataInfo = getMetadataInfo(filePath);
+				if(!metadataInfo){
+					vscode.window.showErrorMessage(`Unsupported Salesforce file type for retrieve: ${fileName}`);
+					return;
+				}
 
-                // Call the original SFDX retrieve command
-                await vscode.commands.executeCommand('sf.retrieve.source.path', uri);
+				vscode.window.showInformationMessage(`⬇️ Retrieving ${fileName}...`);
+
+				if(metadataInfo.type === 'LightningComponentBundle'){
+					const pathParts = filePath.split(/[/\\]/);
+					const lwcIndex = pathParts.findIndex(part => part === 'lwc');
+					const bundlePath = pathParts.slice(0, lwcIndex + 2).join(path.sep);
+
+					await vscode.commands.executeCommand('sf.retrieve.source.path', vscode.Uri.file(bundlePath));
+				}else{
+					await vscode.commands.executeCommand('sf.retrieve.source.path', uri);
+				}
 
                 // Update retrieve timestamp
                 const retrieveMap = getRetrieveMap(context);
-                retrieveMap.set(fileBaseName, new Date());
+                retrieveMap.set(metadataInfo.name, new Date());
                 saveRetrieveMap(context, retrieveMap);
 
-                console.log(`✅ Tracked retrieve for ${fileBaseName} at ${new Date().toLocaleString()}`);
+                console.log(`✅ Tracked retrieve for ${metadataInfo.name} at ${new Date().toLocaleString()}`);
                 vscode.window.showInformationMessage(`✅ Retrieved and synced: ${fileName}`);
 
             } catch (error) {
@@ -372,6 +414,12 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage(`${fileName} is not a Salesforce file`);
                 return;
             }
+
+			const metadataInfo = getMetadataInfo(filePath);
+			if(!metadataInfo){
+				vscode.window.showErrorMessage(`Unsupported Salesforce file type for deploy: ${fileName}`);
+				return;
+			}
 
             // Save if dirty
             if (editor.document.isDirty) {
@@ -430,24 +478,28 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showInformationMessage('✅ File retrieved. You can now deploy safely.');
                     return;
                 }
-
-                // If "Deploy Anyway" - continue to deployment
             }
 
             // Deploy the file
             vscode.window.showInformationMessage(`🚀 Deploying ${fileName}...`);
 
             try {
-                await vscode.commands.executeCommand('sf.deploy.source.path',
-                    vscode.Uri.file(filePath)
-                );
+				if(metadataInfo.type === 'LightningComponentBundle'){
+					const pathParts = filePath.split(/[/\\]/);
+					const lwcIndex = pathParts.findIndex(part => part === 'lwc');
+					const bundlePath = pathParts.slice(0, lwcIndex + 2).join(path.sep);
+
+					await vscode.commands.executeCommand('sf.deploy.source.path', vscode.Uri.file(bundlePath));
+				}else{
+					await vscode.commands.executeCommand('sf.deploy.source.path', vscode.Uri.file(filePath));
+				}
 
                 // Update retrieve timestamp after successful deploy (sync)
                 const retrieveMap = getRetrieveMap(context);
-                retrieveMap.set(fileBaseName, new Date());
+                retrieveMap.set(metadataInfo.name, new Date());
                 saveRetrieveMap(context, retrieveMap);
 
-                console.log(`✅ Updated sync timestamp for ${fileBaseName} after deployment`);
+                console.log(`✅ Updated sync timestamp for ${metadataInfo.name} after deployment`);
                 vscode.window.showInformationMessage(`✅ ${fileName} deployed successfully!`);
 
             } catch (error) {
@@ -456,7 +508,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
 
-	context.subscriptions.push(disposable, safeDeploy, testListCommands, trackedRetrieve);
+	context.subscriptions.push(safeDeploy, trackedRetrieve);
 }
 
 export function deactivate() {}
