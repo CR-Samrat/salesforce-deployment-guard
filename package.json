@@ -1,10 +1,30 @@
 {
   "name": "salesforce-deployment-guard",
-  "displayName": "salesforce-deployment-guard",
-  "description": "Used to prevent code overright",
-  "version": "0.0.1",
+  "displayName": "SF Guard",
+  "description": "Prevents accidental code overwrites during Salesforce deployments with conflict detection and visual merge tools",
+  "version": "1.0.0",
+  "publisher": "SubhadeepDev",
+  "icon": "images/sf-guard-production-logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CR-Samrat/salesforce-deployment-guard"
+  },
+  "keywords": [
+    "salesforce",
+    "deployment",
+    "conflict detection",
+    "apex",
+    "lwc",
+    "sfdx",
+    "sf",
+    "guard",
+    "merge",
+    "diff",
+    "code protection"
+  ],
+  "license": "MIT",
   "engines": {
-    "vscode": "^1.107.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
@@ -13,14 +33,6 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "salesforce-deployment-guard.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "salesforce-deployment-guard.listSFCommands",
-        "title": "List Salesforce Commands"
-      },
       {
         "command": "salesforce-deployment-guard.retrieve",
         "title": "SF Guard: Retrieve from Org",
@@ -68,7 +80,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.107.0",
+    "@types/vscode": "^1.85.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "typescript-eslint": "^8.48.1",

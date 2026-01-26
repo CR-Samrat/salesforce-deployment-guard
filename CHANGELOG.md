@@ -1,9 +1,11 @@
 # Change Log
 
-All notable changes to the "salesforce-deployment-guard" extension will be documented in this file.
+## [1.0.0] - 2025-01-XX
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
+### Added
 - Initial release
+- Conflict detection for Apex and LWC files
+- Tracked retrieve command
+- Safe deploy command
+- Visual diff viewer for conflict resolution
+- Support for .cls, .trigger, .apex, .js, .html, .css files

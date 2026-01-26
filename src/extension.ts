@@ -293,8 +293,7 @@ async function showDiffAndResolve(localFilePath: string, context: vscode.Extensi
 			{ modal: true },
 			'⬅️ Use Org Version',
 			'➡️ Keep Local Version',
-			'✏️ Merge Manually',
-			'❌ Cancel'
+			'✏️ Merge Manually'
 		);
 
 		if(choice === '⬅️ Use Org Version'){
@@ -449,8 +448,7 @@ export function activate(context: vscode.ExtensionContext) {
                     { modal: true },
 					'🔍 Resolve Conflict & Deploy',
                     '⬇️ Retrieve Now',
-                    '🚀 Deploy Anyway',
-                    '❌ Cancel'
+                    '🚀 Deploy Anyway'
                 );
 
 				if(choice === '🔍 Resolve Conflict & Deploy'){
@@ -464,7 +462,7 @@ export function activate(context: vscode.ExtensionContext) {
 					}
 				}
 
-                if (choice === '❌ Cancel' || !choice) {
+                if (!choice) {
                     vscode.window.showInformationMessage('Deployment cancelled');
                     return;
                 }

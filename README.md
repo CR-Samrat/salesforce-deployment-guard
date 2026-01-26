@@ -1,71 +1,161 @@
-# salesforce-deployment-guard README
+# Salesforce Deployment Guard 🛡️
 
-This is the README for your extension "salesforce-deployment-guard". After writing up a brief description, we recommend including the following sections.
+> Stop overwriting your teammates' code! Detect conflicts before deployment and merge changes safely.
 
-## Features
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](link-after-publishing)
+[![Version](https://img.shields.io/badge/version-1.0.0-green)]()
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+## 🎯 The Problem
 
-For example if there is an image subfolder under your extension project workspace:
+**Sound familiar?**
 
-\!\[feature X\]\(images/feature-x.png\)
+1. You retrieve `AccountController.cls` from your Dev org
+2. Your teammate updates it (via Developer Console or their VS Code)
+3. You deploy your version → **Their changes are gone!** 😱
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+This happens **every day** on Salesforce teams. Until now.
 
-## Requirements
+## ✨ The Solution
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Salesforce Deployment Guard automatically detects conflicts before deployment and provides visual tools to safely merge changes.
 
-## Extension Settings
+![Conflict Detection](images/screenshot-conflict.png)
+*Automatic conflict detection before deployment*
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+![Diff Viewer](images/screenshot-diff.png)
+*Side-by-side comparison with visual merge tools*
 
-For example:
+## 🚀 Features
 
-This extension contributes the following settings:
+- **🔍 Automatic Conflict Detection** - Checks if someone else modified the file before you deploy
+- **📊 Visual Diff Viewer** - Side-by-side comparison of your changes vs. org version
+- **⬇️ Tracked Retrieve** - Remembers when you last retrieved files to detect conflicts
+- **🛡️ Safe Deploy** - Deploy with confidence knowing you won't overwrite others' work
+- **⚡ Supports Apex & LWC** - Works with classes, triggers, and Lightning Web Components
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## 📦 Installation
 
-## Known Issues
+1. Open VS Code
+2. Go to Extensions (`Ctrl+Shift+X`)
+3. Search for **"Salesforce Deployment Guard"**
+4. Click **Install**
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+**Requirements:**
+- Salesforce CLI installed (`sf` or `sfdx`)
+- Salesforce Extensions Pack for VS Code
 
-## Release Notes
+## 🎓 How to Use
 
-Users appreciate release notes as you update your extension.
+### Step 1: Retrieve Files (Tracked)
 
-### 1.0.0
+Right-click on any Apex or LWC file → **"SF Guard: Retrieve from Org"**
 
-Initial release of ...
+This retrieves the file AND marks it as synced with the org.
 
-### 1.0.1
+### Step 2: Make Your Changes
 
-Fixed issue #.
+Edit the file as you normally would.
 
-### 1.1.0
+### Step 3: Deploy Safely
 
-Added features X, Y, and Z.
+Right-click the file → **"SF Guard: Safe Deploy to Org"**
+
+The extension will:
+1. ✅ Check if anyone else modified the file since your last retrieve
+2. ⚠️ Warn you if a conflict is detected
+3. 📊 Show visual diff to resolve conflicts
+4. 🚀 Deploy safely
+
+## 🎬 Workflow Example
+
+**Conflict Detected:**
+```
+⚠️ WARNING: Conflict Detected!
+
+File: "AccountController.cls"
+Last modified by: John Doe
+Modified on: Jan 25, 2025, 2:30 PM
+
+What would you like to do?
+[🔍 Resolve Conflict & Deploy] [⬇️ Retrieve Now] [🚀 Deploy Anyway] [❌ Cancel]
+```
+
+**Choose "Resolve Conflict & Deploy":**
+- Opens side-by-side diff viewer
+- See exactly what changed
+- Merge changes manually
+- Deploy when ready
+
+## ⚙️ Commands
+
+| Command | Description |
+|---------|-------------|
+| `SF Guard: Retrieve from Org` | Retrieve file and track sync status |
+| `SF Guard: Safe Deploy to Org` | Deploy with conflict detection |
+
+## 📁 Supported File Types
+
+| Type | Extensions | Conflict Detection | Diff Viewer |
+|------|-----------|-------------------|-------------|
+| Apex Classes | `.cls` | ✅ | ✅ |
+| Apex Triggers | `.trigger` | ✅ | ✅ |
+| Apex Pages | `.apex` | ✅ | ✅ |
+| LWC Components | `.js`, `.html`, `.css` | ✅ | ✅ |
+
+## 🆚 Why Use This Instead of Standard SFDX?
+
+| Standard SFDX | Salesforce Deployment Guard |
+|--------------|------------------------------|
+| No conflict detection | ✅ Automatic conflict detection |
+| Manual file comparison | ✅ Visual diff viewer |
+| Risk of overwriting code | ✅ Prevents accidental overwrites |
+| No deployment tracking | ✅ Tracks retrieve/deploy history |
+
+## 🛠️ How It Works
+
+1. **Tracks Retrievals** - Remembers when you last retrieved each file
+2. **Queries Org** - Before deployment, checks file's `LastModifiedDate` in Salesforce
+3. **Compares Timestamps** - If org version is newer than your last retrieve → Conflict!
+4. **Shows Diff** - Retrieves org version and displays side-by-side comparison
+5. **Safe Deploy** - You choose how to resolve, then deploy confidently
+
+## 🐛 Known Limitations
+
+- Only works with files (not entire metadata deployments)
+- Requires Salesforce CLI to be installed and authenticated
+- LWC conflict detection is at bundle level (all files in component)
+
+## 📝 Roadmap
+
+- [ ] Batch conflict checking (multiple files at once)
+- [ ] Deployment history log
+- [ ] Status bar indicators
+- [ ] Team awareness features
+
+## 🤝 Contributing
+
+Found a bug? Have a feature request?
+
+- **Report Issues**: [GitHub Issues](https://github.com/CR-Samrat/salesforce-deployment-guard/issues)
+- **Suggest Features**: Open an issue with the "enhancement" label
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file for details
+
+## 👨‍💻 Author
+
+Built with ❤️ by Subhadeep Sarkar
+
+**If this extension saved you from a deployment disaster:**
+- ⭐ Star the [GitHub repo](https://github.com/CR-Samrat/salesforce-deployment-guard)
+- 📝 Leave a review on the marketplace
+- 💬 Share with your Salesforce team!
+
+## 🙏 Acknowledgments
+
+Thanks to the Salesforce Developer community and everyone who provided feedback!
 
 ---
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+**Happy (Safe) Deploying!** 🚀
