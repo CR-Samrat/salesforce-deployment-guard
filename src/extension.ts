@@ -188,17 +188,19 @@ async function checkForConflicts(filePath: string, context: vscode.ExtensionCont
 		const {type, name} = metadataInfo;
 		const metadataType = type;
 		const fileName = name;
+		let enableToolingApi = false;
 
         // Query Salesforce org for this file's info
 		let query = '';
 		if(type === 'LightningComponentBundle'){
 			query = `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM LightningComponentBundle WHERE DeveloperName='${fileName}'`;
+			enableToolingApi = true;
 		}else{
 			query = `SELECT LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM ${metadataType} WHERE Name='${fileName}'`;
 		}
         
         const { stdout } = await execAsync(
-            `sf data query --use-tooling-api --query "${query}" --json`,
+            `sf data query ${enableToolingApi ? '--use-tooling-api' : ''} --query "${query}" --json`,
             { cwd: workspaceFolder }
         );
 
@@ -259,7 +261,15 @@ async function checkForConflicts(filePath: string, context: vscode.ExtensionCont
 
     } catch (error) {
         console.error('Error checking conflicts:', error);
+
         // On error, allow deployment (fail-open)
+    	const errorMessage = error instanceof Error
+			? error.message
+        	: typeof error === 'object' && error !== null && 'message' in error
+        	? (error as any).message
+        	: String(error);
+
+		vscode.window.showErrorMessage(`Error! while checking for conflicts. Reason : ${errorMessage}`);
         return { hasConflict: false };
     }
 }

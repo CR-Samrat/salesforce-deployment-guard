@@ -2,7 +2,7 @@
   "name": "salesforce-deployment-guard",
   "displayName": "SF Guard",
   "description": "Prevents accidental code overwrites during Salesforce deployments with conflict detection and visual merge tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "SubhadeepDev",
   "icon": "images/sf-guard-production-logo.png",
   "repository": {

@@ -1,6 +1,14 @@
 # Change Log
 
-## [1.0.0] - 2025-01-XX
+## [1.0.1] - 2025-02-03
+
+### Fixed
+- Added detailed error messages when conflict detection fails
+
+### Changed
+- Conditional use of Tooling API based on metadata type (LightningComponentBundle)
+
+## [1.0.0] - 2025-01-26
 
 ### Added
 - Initial release
