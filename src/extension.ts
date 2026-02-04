@@ -3,6 +3,7 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
+import { AuthInfo, Connection } from '@salesforce/core';
 
 const execAsync = promisify(exec);
 const RETRIEVE_MAP_KEY = 'sfGuard.retrieveTimestamps';
@@ -54,7 +55,7 @@ async function getCurrentSalesforceUsername(): Promise<string | null> {
             return null;
         }
 
-        // Get current org info
+        // Get current org info - only CLI command we'll use
         const { stdout } = await execAsync(
             'sf org display --json',
             { cwd: workspaceFolder }
@@ -70,6 +71,26 @@ async function getCurrentSalesforceUsername(): Promise<string | null> {
         return null;
     } catch (error) {
         console.error('Error getting current username:', error);
+        return null;
+    }
+}
+
+async function getSalesforceConnection(): Promise<Connection | null> {
+    try {
+        const username = await getCurrentSalesforceUsername();
+        
+        if (!username) {
+            console.error('No username found');
+            return null;
+        }
+
+        // Create connection using @salesforce/core
+        const authInfo = await AuthInfo.create({ username });
+        const conn = await Connection.create({ authInfo });
+        
+        return conn;
+    } catch (error) {
+        console.error('Error creating Salesforce connection:', error);
         return null;
     }
 }
@@ -91,31 +112,30 @@ async function retrieveOrgVersion(filePath: string): Promise<string | null>{
 		const tempFilePath = path.join(tempDir, `${metadataInfo?.name}_ORG${fileExt}`);
 		let orgContent = '';
 
+		// Get connection instead of using CLI
+		const conn = await getSalesforceConnection();
+		if (!conn) {
+			console.error('Could not establish Salesforce connection');
+			return null;
+		}
+
 		if(metadataType === 'LightningComponentBundle'){
 			const query = `SELECT Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName='${fileName}' and FilePath LIKE '%${fileExt}'`;
 
-			const { stdout } = await execAsync(
-				`sf data query --use-tooling-api --query "${query}" --json`,
-				{ cwd: workspaceFolder }
-			);
+			// Use tooling API query
+			const result = await conn.tooling.query(query);
 
-			const result = JSON.parse(stdout);
-
-			if (result.status === 0 && result.result?.records?.length) {
-				orgContent = result.result.records[0].Source || '';
+			if (result.totalSize > 0 && result.records?.length) {
+				orgContent = (result.records[0] as any).Source || '';
 			}
 		}else{
 			const query = `SELECT Body FROM ${metadataType} WHERE Name='${fileName}'`;
 
-			const { stdout } = await execAsync(
-				`sf data query --query "${query}" --json`,
-				{ cwd: workspaceFolder }
-			);
+			// Use regular query
+			const result = await conn.query(query);
 
-			const result = JSON.parse(stdout);
-
-			if (result.status === 0 && result.result?.records?.length) {
-				orgContent = result.result.records[0].Body || '';
+			if (result.totalSize > 0 && result.records?.length) {
+				orgContent = (result.records[0] as any).Body || '';
 			}
 		}
 
@@ -188,31 +208,37 @@ async function checkForConflicts(filePath: string, context: vscode.ExtensionCont
 		const {type, name} = metadataInfo;
 		const metadataType = type;
 		const fileName = name;
-		let enableToolingApi = false;
+
+		// Get connection instead of using CLI
+		const conn = await getSalesforceConnection();
+		if (!conn) {
+			console.error('Could not establish Salesforce connection');
+			return { hasConflict: false };
+		}
 
         // Query Salesforce org for this file's info
 		let query = '';
+		let result;
+
 		if(type === 'LightningComponentBundle'){
 			query = `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM LightningComponentBundle WHERE DeveloperName='${fileName}'`;
-			enableToolingApi = true;
+			
+			// Use tooling API query
+			result = await conn.tooling.query(query);
 		}else{
 			query = `SELECT LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username FROM ${metadataType} WHERE Name='${fileName}'`;
+			
+			// Use regular query
+			result = await conn.query(query);
 		}
         
-        const { stdout } = await execAsync(
-            `sf data query ${enableToolingApi ? '--use-tooling-api' : ''} --query "${query}" --json`,
-            { cwd: workspaceFolder }
-        );
-
-        const result = JSON.parse(stdout);
-        
         // Check if query was successful
-        if (result.status !== 0 || !result.result?.records?.length) {
+        if (!result || result.totalSize === 0 || !result.records?.length) {
             console.log('No record found in org or query failed');
             return { hasConflict: false };
         }
 
-        const orgRecord = result.result.records[0];
+        const orgRecord = result.records[0] as any;
         const modifiedByName = orgRecord.LastModifiedBy?.Name || 'Unknown';
 		const modifiedByUsername = orgRecord.LastModifiedBy?.Username || '';
         const orgLastModified = new Date(orgRecord.LastModifiedDate);
