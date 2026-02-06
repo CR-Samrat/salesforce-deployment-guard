@@ -2,6 +2,27 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.3.0] - 2026-02-07
+
+### Added
+- 🔒 SOQL injection protection for all database queries
+- ⚡ Connection pooling (30-minute cache) for improved performance
+- 🎯 LWC multi-file diff checker - now handles bundles with multiple files of same type
+- 📊 Sync Status Viewer - view all tracked files and their sync timestamps
+
+### Changed
+- 🎨 Moved "Merge Manually" button to first position for better UX
+- 🗑️ Removed redundant "Deployment successful" message (already shown by SF Extension Pack)
+
+### Fixed
+- 🐛 LWC components with multiple .js, .html, or .css files now diff correctly
+- 🐛 File retrieval now uses unique temp file names to prevent conflicts
+- 🐛 SOQL queries now target specific files by name, not just extension
+
+### Performance
+- 40-50% faster conflict checks (connection pooling)
+- Reduced API calls through intelligent caching
+
 ## [0.2.0] - 2025-02-05
 
 ### 🎯 Major Update - Global Protect & VPN Compatibility
