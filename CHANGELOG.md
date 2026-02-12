@@ -2,6 +2,14 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.3.1] - 2026-02-12
+
+### Improvements
+- Faster performance across all operations
+- Enhanced security and reliability
+- Improved code architecture for future features
+- Minor bug fixes and optimizations
+
 ## [0.3.0] - 2026-02-07
 
 ### Added
