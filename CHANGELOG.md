@@ -2,6 +2,12 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.3.2] - 2026-02-12
+
+### Fixed
+- Critical: Extension now properly resolves org aliases (e.g., "Dev") to actual usernames
+- Fixed NamedOrgNotFound error when using org aliases in target-org config
+
 ## [0.3.1] - 2026-02-12
 
 ### Improvements

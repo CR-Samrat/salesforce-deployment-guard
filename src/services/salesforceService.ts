@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { AuthInfo, Connection } from '@salesforce/core';
+import { AuthInfo, Connection, StateAggregator } from '@salesforce/core';
 
 class SalesforceService {
     private static instance: SalesforceService;
@@ -25,36 +25,50 @@ class SalesforceService {
         try {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
             
-            // Method 1: Try workspace .sf/config.json
+            let usernameOrAlias: string | null = null;
+            const state = await StateAggregator.getInstance();
+            
+            // Step 1: Try to get username or alias
             if (workspaceFolder) {
                 const workspaceConfig = path.join(workspaceFolder, '.sf', 'config.json');
-                const username = this.readUsernameFromConfig(workspaceConfig);
-                if (username) {
-                    return username;
+                usernameOrAlias = this.readTargetOrgFromConfig(workspaceConfig);
+            }
+            
+            if (!usernameOrAlias) {
+                const homeDir = os.homedir();
+                const globalConfig = path.join(homeDir, '.sf', 'config.json');
+                usernameOrAlias = this.readTargetOrgFromConfig(globalConfig);
+            }
+            
+            if (!usernameOrAlias) {
+                const homeDir = os.homedir();
+                const legacyConfig = path.join(homeDir, '.sfdx', 'sfdx-config.json');
+                usernameOrAlias = this.readTargetOrgFromConfig(legacyConfig);
+            }
+            
+            // Step 2: If we got an alias, fetch username from it
+            if (usernameOrAlias) {
+                const resolvedUsername = await state.aliases.getUsername(usernameOrAlias);
+                
+                if (resolvedUsername) {
+                    console.log(`✅ Resolved alias "${usernameOrAlias}" → "${resolvedUsername}"`);
+                    return resolvedUsername;
+                } else {
+                    console.log(`✅ Using username directly: "${usernameOrAlias}"`);
+                    return usernameOrAlias;
                 }
             }
             
-            // Method 2: Try global .sf/config.json
-            const homeDir = os.homedir();
-            const globalConfig = path.join(homeDir, '.sf', 'config.json');
-            const username = this.readUsernameFromConfig(globalConfig);
-            if (username) {
-                return username;
-            }
-            
-            // Method 3: Try legacy .sfdx/sfdx-config.json
-            const legacyConfig = path.join(homeDir, '.sfdx', 'sfdx-config.json');
-            const legacyUsername = this.readUsernameFromConfig(legacyConfig);
-            if (legacyUsername) {
-                return legacyUsername;
-            }
-            
-            // Method 4: Fallback to AuthInfo
+            // Step 3: Fallback - get from AuthInfo (first authorized org)
+            console.log('⚠️ No target-org found in config, using first authorized org');
             const authorizations = await AuthInfo.listAllAuthorizations();
+            
             if (authorizations.length > 0) {
+                console.log(`✅ Using first authorized org: "${authorizations[0].username}"`);
                 return authorizations[0].username;
             }
             
+            console.error('❌ No Salesforce orgs found');
             return null;
             
         } catch (error) {
@@ -63,7 +77,7 @@ class SalesforceService {
         }
     }
 
-    private readUsernameFromConfig(configPath: string): string | null {
+    private readTargetOrgFromConfig(configPath: string): string | null {
         try {
             if (!fs.existsSync(configPath)) {
                 return null;
