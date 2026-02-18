@@ -3,7 +3,7 @@
 > Stop overwriting your teammates' code! Detect conflicts before deployment and merge changes safely.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-0.3.2-green)]()
+[![Version](https://img.shields.io/badge/version-0.4.0-green)]()
 
 ## 🎯 The Problem
 
