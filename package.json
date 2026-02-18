@@ -53,24 +53,25 @@
       "explorer/context": [
         {
           "command": "salesforce-deployment-guard.retrieve",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css || resourceExtname == .xml || resourceExtname == .page || resourceExtname == .component || resourceExtname == .cmp || resourceExtname == .app || resourceExtname == .evt || resourceExtname == .intf || resourceExtname == .auradoc || resourceExtname == .design || resourceExtname == .tokens || resourceExtname == .svg",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@1"
         },
         {
           "command": "salesforce-deployment-guard.safeDeploy",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css || resourceExtname == .xml || resourceExtname == .page || resourceExtname == .component || resourceExtname == .cmp || resourceExtname == .app || resourceExtname == .evt || resourceExtname == .intf || resourceExtname == .auradoc || resourceExtname == .design || resourceExtname == .tokens || resourceExtname == .svg",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@2"
         }
       ],
       "editor/context": [
         {
           "command": "salesforce-deployment-guard.retrieve",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css || resourceExtname == .xml || resourceExtname == .page || resourceExtname == .component || resourceExtname == .cmp || resourceExtname == .app || resourceExtname == .evt || resourceExtname == .intf || resourceExtname == .auradoc || resourceExtname == .design || resourceExtname == .tokens || resourceExtname == .svg",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@1"
         },
         {
           "command": "salesforce-deployment-guard.safeDeploy",
-          "when": "resourceExtname == .cls || resourceExtname == .trigger || resourceExtname == .html || resourceExtname == .js || resourceExtname == .css || resourceExtname == .xml || resourceExtname == .page || resourceExtname == .component || resourceExtname == .cmp || resourceExtname == .app || resourceExtname == .evt || resourceExtname == .intf || resourceExtname == .auradoc || resourceExtname == .design || resourceExtname == .tokens || resourceExtname == .svg",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+
           "group": "salesforce@2"
         }
       ]

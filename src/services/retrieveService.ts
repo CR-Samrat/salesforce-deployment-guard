@@ -27,7 +27,7 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
         const safeName = sanitizeFileName(fileName);
         const safeBaseName = sanitizeFileName(fileBaseName);
         
-        if (metadataType === 'LightningComponentBundle') {
+        if (metadataType === 'LightningComponentBundle' || metadataType === 'AuraDefinitionBundle') {
             tempFilePath = path.join(tempDir, `${safeName}_${safeBaseName}_ORG${fileExt}`);
         } else {
             tempFilePath = path.join(tempDir, `${safeName}_ORG${fileExt}`);
@@ -37,8 +37,6 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
             const query = `SELECT Source FROM LightningComponentResource 
                           WHERE LightningComponentBundle.DeveloperName='${sanitizeSOQL(fileName)}' 
                           AND FilePath LIKE '%${sanitizeSOQL(fileBaseName)}${fileExt}'`;
-            
-            console.log("Tooling API Query for LWC Resource:", query);
 
             const result = await salesforceService.toolingQuery(query);
 
@@ -68,8 +66,6 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
             const query = `SELECT Source FROM AuraDefinition 
                   WHERE AuraDefinitionBundle.DeveloperName='${sanitizeSOQL(fileName)}' 
                   AND DefType='${defType}'`;
-    
-            console.log("Tooling API Query for Aura Definition:", query);
 
             const result = await salesforceService.toolingQuery(query);
 

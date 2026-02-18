@@ -31,10 +31,8 @@ class SalesforceService {
                 const resolvedUsername = await state.aliases.getUsername(usernameOrAlias);
                 
                 if (resolvedUsername) {
-                    console.log(`✅ Resolved alias "${usernameOrAlias}" → "${resolvedUsername}"`);
                     return resolvedUsername;
                 } else {
-                    console.log(`✅ Using username directly: "${usernameOrAlias}"`);
                     return usernameOrAlias;
                 }
             }

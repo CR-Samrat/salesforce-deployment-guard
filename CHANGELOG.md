@@ -2,6 +2,14 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.4.0] - 2026-02-18
+
+### Added
+- Aura component support (.cmp, .app, .evt, .intf, etc.)
+- Visualforce page support (.page)
+- Visualforce component support (.component)
+- LWC .xml files in multi-file diff
+
 ## [0.3.2] - 2026-02-12
 
 ### Fixed
@@ -19,14 +27,14 @@ All notable changes to the "Salesforce Deployment Guard" extension will be docum
 ## [0.3.0] - 2026-02-07
 
 ### Added
-- 🔒 SOQL injection protection for all database queries
-- ⚡ Connection pooling (30-minute cache) for improved performance
-- 🎯 LWC multi-file diff checker - now handles bundles with multiple files of same type
-- 📊 Sync Status Viewer - view all tracked files and their sync timestamps
+- SOQL injection protection for all database queries
+- Connection pooling (30-minute cache) for improved performance
+- LWC multi-file diff checker - now handles bundles with multiple files of same type
+- Sync Status Viewer - view all tracked files and their sync timestamps
 
 ### Changed
-- 🎨 Moved "Merge Manually" button to first position for better UX
-- 🗑️ Removed redundant "Deployment successful" message (already shown by SF Extension Pack)
+- Moved "Merge Manually" button to first position for better UX
+- Removed redundant "Deployment successful" message (already shown by SF Extension Pack)
 
 ### Fixed
 - 🐛 LWC components with multiple .js, .html, or .css files now diff correctly

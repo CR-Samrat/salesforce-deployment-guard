@@ -47,7 +47,6 @@ export async function showLWCDiffAndResolve(
         vscode.window.showInformationMessage('🔍 Comparing bundle files with org...');
         
         for (const file of relevantFiles) {
-            console.log(`Processing file: ${file}`);
             const localPath = path.join(bundlePath, file);
             const orgPath = await retrieveOrgVersion(localPath);
             
@@ -57,7 +56,6 @@ export async function showLWCDiffAndResolve(
                 const orgContent = fs.readFileSync(orgPath, 'utf8');
                 
                 if (localContent !== orgContent) {
-                    console.log(`File with changes detected: ${file}`);
                     filesWithChanges.push({
                         localPath,
                         orgPath,
