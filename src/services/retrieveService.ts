@@ -45,6 +45,51 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
             if (result.length > 0) {
                 orgContent = (result[0] as any).Source || '';
             }
+        } else if (metadataType === 'AuraDefinitionBundle') {
+            let defType = 'COMPONENT';  // Default
+            if (fileExt === '.js') {
+                if (fileBaseName.endsWith('Controller')) {
+                    defType = 'CONTROLLER';
+                } else if (fileBaseName.endsWith('Helper')) {
+                    defType = 'HELPER';
+                } else if (fileBaseName.endsWith('Renderer')) {
+                    defType = 'RENDERER';
+                }
+            } else if (fileExt === '.css') {
+                defType = 'STYLE';
+            } else if (fileExt === '.design') {
+                defType = 'DESIGN';
+            } else if (fileExt === '.svg') {
+                defType = 'SVG';
+            } else if (fileExt === '.auradoc') {
+                defType = 'DOCUMENTATION';
+            }
+
+            const query = `SELECT Source FROM AuraDefinition 
+                  WHERE AuraDefinitionBundle.DeveloperName='${sanitizeSOQL(fileName)}' 
+                  AND DefType='${defType}'`;
+    
+            console.log("Tooling API Query for Aura Definition:", query);
+
+            const result = await salesforceService.toolingQuery(query);
+
+            if (result.length > 0) {
+                orgContent = (result[0] as any).Source || '';
+            }
+        } else if (metadataType === 'ApexPage') {
+            const query = `SELECT Markup FROM ApexPage WHERE Name='${sanitizeSOQL(fileName)}'`;
+            const result = await salesforceService.query(query);
+
+            if (result.length > 0) {
+                orgContent = (result[0] as any).Markup || '';
+            }
+        } else if (metadataType === 'ApexComponent') {
+            const query = `SELECT Markup FROM ApexComponent WHERE Name='${sanitizeSOQL(fileName)}'`;
+            const result = await salesforceService.query(query);
+
+            if (result.length > 0) {
+                orgContent = (result[0] as any).Markup || '';
+            }
         } else {
             const query = `SELECT Body FROM ${metadataType} WHERE Name='${sanitizeSOQL(fileName)}'`;
 

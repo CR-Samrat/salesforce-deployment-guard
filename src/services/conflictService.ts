@@ -39,13 +39,23 @@ export class ConflictService {
 
             if (type === 'LightningComponentBundle') {
                 query = `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username 
-                         FROM LightningComponentBundle 
-                         WHERE DeveloperName='${sanitizeSOQL(name)}'`;
+                         FROM LightningComponentBundle WHERE DeveloperName='${sanitizeSOQL(name)}'`;
                 records = await salesforceService.toolingQuery(query);
-            } else {
+            } else if (type === 'AuraDefinitionBundle') {
+                query = `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username 
+                        FROM AuraDefinitionBundle WHERE DeveloperName='${sanitizeSOQL(name)}'`;
+                records = await salesforceService.toolingQuery(query);
+            } else if (type === 'ApexPage') {
+                query = `SELECT Id, Name, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username 
+                        FROM ApexPage WHERE Name='${sanitizeSOQL(name)}'`;
+                records = await salesforceService.query(query);
+            } else if (type === 'ApexComponent') {
+                query = `SELECT Id, Name, LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username 
+                        FROM ApexComponent WHERE Name='${sanitizeSOQL(name)}'`;
+                records = await salesforceService.query(query);
+            }else {
                 query = `SELECT LastModifiedDate, LastModifiedBy.Name, LastModifiedBy.Username 
-                         FROM ${type} 
-                         WHERE Name='${sanitizeSOQL(name)}'`;
+                         FROM ${type} WHERE Name='${sanitizeSOQL(name)}'`;
                 records = await salesforceService.query(query);
             }
             

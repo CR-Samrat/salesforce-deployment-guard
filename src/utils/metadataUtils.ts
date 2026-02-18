@@ -21,7 +21,18 @@ export function getMetadataInfo(filePath: string): MetadataInfo | null {
         return { type: 'ApexPage', name: fileName };
     }
 
-    if (['.html', '.js', '.css'].includes(fileExt)) {
+    // Visualforce Page
+    if (fileExt === '.page') {
+        return { type: 'ApexPage', name: fileName };
+    }
+
+    // Visualforce Component
+    if (fileExt === '.component') {
+        return { type: 'ApexComponent', name: fileName };
+    }
+
+    // Lightning Web Components
+    if (['.html', '.js', '.css','.xml'].includes(fileExt)) {
         const pathParts = filePath.split(/[/\\]/);
         const lwcIndex = pathParts.findIndex(part => part === 'lwc');
 
@@ -31,16 +42,52 @@ export function getMetadataInfo(filePath: string): MetadataInfo | null {
         }
     }
 
+    // Aura Components
+    if (['.cmp', '.app', '.evt', '.intf', '.auradoc', '.design', '.svg', '.tokens','.js', '.css'].includes(fileExt)) {
+        const pathParts = filePath.split(/[/\\]/);
+        const auraIndex = pathParts.findIndex(part => part === 'aura');
+
+        if (auraIndex !== -1 && auraIndex < pathParts.length - 1) {
+            const componentName = pathParts[auraIndex + 1];
+            return { type: 'AuraDefinitionBundle', name: componentName };
+        }
+    }
+
     return null;
 }
 
 export function isSalesforceFile(filePath: string): boolean {
-    const salesforceExtensions = ['.cls', '.trigger', '.apex', '.js', '.html', '.css'];
+    const salesforceExtensions = [
+        // Apex
+        '.cls', '.trigger', '.apex',
+        // Visualforce
+        '.page', '.component',
+        // LWC
+        '.html', '.js', '.css', '.xml',
+        // Aura
+        '.cmp', '.app', '.evt', '.intf', '.auradoc', '.design', '.svg', '.tokens'
+    ];
+    
     const fileExtension = path.extname(filePath).toLowerCase();
 
-    if (['.js', '.html', '.css'].includes(fileExtension)) {
-        return filePath.includes('/lwc/') || filePath.includes('\\lwc\\');
+    // For extensions that could be LWC, Aura, or regular files, check path
+    if (['.js', '.html', '.css', '.xml'].includes(fileExtension)) {
+        return filePath.includes('/lwc/') || filePath.includes('\\lwc\\') ||
+               filePath.includes('/aura/') || filePath.includes('\\aura\\');
     }
     
     return salesforceExtensions.includes(fileExtension);
+}
+
+export function getFileExtensionsForType(metadataType: string): string[] {
+    switch (metadataType) {
+        case 'LightningComponentBundle':
+            return ['.html', '.js', '.css', '.xml', '.svg'];
+        
+        case 'AuraDefinitionBundle':
+            return ['.cmp', '.app', '.evt', '.intf', '.auradoc', '.css', '.js', '.design', '.svg', '.tokens'];
+        
+        default:
+            return [];
+    }
 }

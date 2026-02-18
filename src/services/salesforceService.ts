@@ -1,8 +1,4 @@
-import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import { AuthInfo, Connection, StateAggregator } from '@salesforce/core';
+import { AuthInfo, Connection, StateAggregator, ConfigAggregator, OrgConfigProperties } from '@salesforce/core';
 
 class SalesforceService {
     private static instance: SalesforceService;
@@ -23,31 +19,15 @@ class SalesforceService {
 
     public async getCurrentUsername(): Promise<string | null> {
         try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-            
-            let usernameOrAlias: string | null = null;
-            const state = await StateAggregator.getInstance();
-            
             // Step 1: Try to get username or alias
-            if (workspaceFolder) {
-                const workspaceConfig = path.join(workspaceFolder, '.sf', 'config.json');
-                usernameOrAlias = this.readTargetOrgFromConfig(workspaceConfig);
-            }
-            
-            if (!usernameOrAlias) {
-                const homeDir = os.homedir();
-                const globalConfig = path.join(homeDir, '.sf', 'config.json');
-                usernameOrAlias = this.readTargetOrgFromConfig(globalConfig);
-            }
-            
-            if (!usernameOrAlias) {
-                const homeDir = os.homedir();
-                const legacyConfig = path.join(homeDir, '.sfdx', 'sfdx-config.json');
-                usernameOrAlias = this.readTargetOrgFromConfig(legacyConfig);
-            }
+            const agg = await ConfigAggregator.create();
+            let usernameOrAlias = (agg.getInfo(OrgConfigProperties.TARGET_ORG)?.value as string | undefined) ||
+                                    process.env.SF_TARGET_ORG ||
+                                    process.env.SFDX_DEFAULTUSERNAME;
             
             // Step 2: If we got an alias, fetch username from it
             if (usernameOrAlias) {
+                const state = await StateAggregator.getInstance();
                 const resolvedUsername = await state.aliases.getUsername(usernameOrAlias);
                 
                 if (resolvedUsername) {
@@ -73,31 +53,6 @@ class SalesforceService {
             
         } catch (error) {
             console.error('Error getting current username:', error);
-            return null;
-        }
-    }
-
-    private readTargetOrgFromConfig(configPath: string): string | null {
-        try {
-            if (!fs.existsSync(configPath)) {
-                return null;
-            }
-            
-            const content = fs.readFileSync(configPath, 'utf8');
-            const config = JSON.parse(content);
-            
-            // New SF CLI format
-            if (config['target-org']) {
-                return config['target-org'];
-            }
-            
-            // Legacy SFDX format
-            if (config['defaultusername']) {
-                return config['defaultusername'];
-            }
-            
-            return null;
-        } catch (error) {
             return null;
         }
     }

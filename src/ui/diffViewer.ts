@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { getMetadataInfo } from '../utils/metadataUtils';
+import { getMetadataInfo, getFileExtensionsForType } from '../utils/metadataUtils';
 import { retrieveOrgVersion } from '../services/retrieveService';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 
 export async function showLWCDiffAndResolve(
     localFilePath: string,
     componentName: string,
+    componentType: string,
     context: vscode.ExtensionContext
 ): Promise<boolean> {
     try {
@@ -19,17 +20,21 @@ export async function showLWCDiffAndResolve(
         
         // Get the LWC bundle path
         const pathParts = localFilePath.split(/[/\\]/);
-        const lwcIndex = pathParts.findIndex(part => part === 'lwc');
-        const bundlePath = pathParts.slice(0, lwcIndex + 2).join(path.sep);
+        const parentIndex = componentType === 'LightningComponentBundle' ? pathParts.findIndex(part => part === 'lwc') : pathParts.findIndex(part => part === 'aura');
+        const bundlePath = pathParts.slice(0, parentIndex + 2).join(path.sep);
+        const bundleFileExts = getFileExtensionsForType(componentType);
+        
+        console.log(`Bundle Path: ${bundlePath}`);
+        console.log(`Expected Bundle File extensions:`, bundleFileExts);
         
         // Get all files in the bundle
         const bundleFiles = fs.readdirSync(bundlePath);
         const relevantFiles = bundleFiles.filter(file => {
             const ext = path.extname(file).toLowerCase();
-            return ['.html', '.js', '.css'].includes(ext);
+            return bundleFileExts.includes(ext);
         });
 
-        console.log(`LWC Bundle Files:`, relevantFiles);
+        console.log(`Bundle Files:`, relevantFiles);
         
         // Retrieve org versions for all files and check which have changes
         const filesWithChanges: Array<{
@@ -162,10 +167,11 @@ export async function showDiffAndResolve(
     try {
         const metadataInfo = getMetadataInfo(localFilePath);
         
-        if (metadataInfo?.type === 'LightningComponentBundle') {
+        if (metadataInfo?.type === 'LightningComponentBundle' || metadataInfo?.type === 'AuraDefinitionBundle') {
             return await showLWCDiffAndResolve(
                 localFilePath,
                 metadataInfo.name,
+                metadataInfo.type,
                 context
             );
         }
