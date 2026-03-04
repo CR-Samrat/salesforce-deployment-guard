@@ -4,6 +4,8 @@ import * as fs from 'fs';
 import { getMetadataInfo, getFileExtensionsForType } from '../utils/metadataUtils';
 import { retrieveOrgVersion } from '../services/retrieveService';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { salesforceService } from '../services/salesforceService';
+import { cleanupTempFile } from '../services/retrieveService';
 
 export async function showLWCDiffAndResolve(
     localFilePath: string,
@@ -11,6 +13,8 @@ export async function showLWCDiffAndResolve(
     componentType: string,
     context: vscode.ExtensionContext
 ): Promise<boolean> {
+    const tempFilesToCleanup: string[] = [];
+
     try {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
         if (!workspaceFolder) {
@@ -63,6 +67,8 @@ export async function showLWCDiffAndResolve(
                         extension: path.extname(file)
                     });
                 }
+
+                tempFilesToCleanup.push(orgPath);
             }
         }
         
@@ -120,7 +126,8 @@ export async function showLWCDiffAndResolve(
             
             // Update retrieve map
             const retrieveMap = getRetrieveMap(context);
-            retrieveMap.set(componentName, new Date());
+            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
+            retrieveMap.set(`${currentUser}:${componentName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
             
             vscode.window.showInformationMessage(
@@ -144,7 +151,8 @@ export async function showLWCDiffAndResolve(
             
             // Update retrieve map since they're manually resolving
             const retrieveMap = getRetrieveMap(context);
-            retrieveMap.set(componentName, new Date());
+            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
+            retrieveMap.set(`${currentUser}:${componentName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
             
             return false;
@@ -155,6 +163,11 @@ export async function showLWCDiffAndResolve(
         console.error('Error showing LWC diff:', error);
         vscode.window.showErrorMessage(`Failed to show LWC difference view. Reason: ${error}`);
         return false;
+    } finally {
+        // Always cleanup, even if error
+        for (const tempFile of tempFilesToCleanup) {
+            cleanupTempFile(tempFile);
+        }
     }
 }
 
@@ -162,6 +175,8 @@ export async function showDiffAndResolve(
     localFilePath: string,
     context: vscode.ExtensionContext
 ): Promise<boolean> {
+    let tempFilePath: string | null = null;
+
     try {
         const metadataInfo = getMetadataInfo(localFilePath);
         
@@ -182,6 +197,7 @@ export async function showDiffAndResolve(
             return false;
         }
 
+        tempFilePath = orgFilePath;
         const fileName = path.basename(localFilePath);
 
         // Open difference editor
@@ -211,7 +227,8 @@ export async function showDiffAndResolve(
             // Update retrieve map
             const retrieveMap = getRetrieveMap(context);
             const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
-            retrieveMap.set(fileBaseName, new Date());
+            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
+            retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 
             vscode.window.showInformationMessage(`✅ Local file updated with org version: ${fileName}`);
@@ -229,7 +246,8 @@ export async function showDiffAndResolve(
             // Update retrieve map since they're manually resolving
             const retrieveMap = getRetrieveMap(context);
             const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
-            retrieveMap.set(fileBaseName, new Date());
+            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
+            retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 
             return false;
@@ -240,5 +258,9 @@ export async function showDiffAndResolve(
         console.error('Error showing diff:', error);
         vscode.window.showErrorMessage(`Failed to show difference view. Reason: ${error}`);
         return false;
+    } finally {
+        if (tempFilePath) {
+            cleanupTempFile(tempFilePath);
+        }
     }
 }

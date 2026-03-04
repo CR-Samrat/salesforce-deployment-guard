@@ -5,6 +5,7 @@ import { isSalesforceFile, getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
+import { salesforceService } from '../services/salesforceService';
 
 export class SafeDeployCommand {
     private conflictService: ConflictService;
@@ -107,7 +108,8 @@ export class SafeDeployCommand {
 
             // Update retrieve timestamp after successful deploy
             const retrieveMap = getRetrieveMap(this.context);
-            retrieveMap.set(metadataInfo.name, new Date());
+            const currentUsername = salesforceService.getCachedUsername() || 'unknown_user';
+            retrieveMap.set(`${currentUsername}:${metadataInfo.name}`, new Date());
             saveRetrieveMap(this.context, retrieveMap);
 
             console.log(`✅ Updated sync timestamp for ${metadataInfo.name} after deployment`);

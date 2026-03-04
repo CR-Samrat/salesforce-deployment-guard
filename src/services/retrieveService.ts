@@ -108,3 +108,9 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
         return null;
     }
 }
+
+export function cleanupTempFile(filePath: string): void {
+    if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
+}

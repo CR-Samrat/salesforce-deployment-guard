@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { isSalesforceFile, getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { salesforceService } from '../services/salesforceService';
 
 export class TrackedRetrieveCommand {
     constructor(private context: vscode.ExtensionContext) {}
@@ -46,7 +47,9 @@ export class TrackedRetrieveCommand {
 
             // Update retrieve timestamp
             const retrieveMap = getRetrieveMap(this.context);
-            retrieveMap.set(metadataInfo.name, new Date());
+            const currentUser = await salesforceService.getCurrentUsername();
+            const key = `${currentUser?.username}:${metadataInfo.name}`;
+            retrieveMap.set(key, new Date());
             saveRetrieveMap(this.context, retrieveMap);
 
             console.log(`✅ Tracked retrieve for ${metadataInfo.name} at ${new Date().toLocaleString()}`);

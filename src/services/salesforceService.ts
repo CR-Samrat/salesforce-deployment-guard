@@ -5,6 +5,7 @@ class SalesforceService {
     private cachedConnection: Connection | null = null;
     private connectionExpiry: Date | null = null;
     private readonly CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+    private cacheKey: {username: string; alias: string | null} | null = null;
 
     private constructor() {
 
@@ -17,10 +18,15 @@ class SalesforceService {
         return SalesforceService.instance;
     }
 
-    public async getCurrentUsername(): Promise<string | null> {
+    public getCachedUsername(): string | null {
+        return this.cacheKey?.username || null;
+    }
+
+    public async getCurrentUsername(): Promise<{username: string; alias: string | null} | null> {
         try {
             // Step 1: Try to get username or alias
             const agg = await ConfigAggregator.create();
+            await agg.reload();
             let usernameOrAlias = (agg.getInfo(OrgConfigProperties.TARGET_ORG)?.value as string | undefined) ||
                                     process.env.SF_TARGET_ORG ||
                                     process.env.SFDX_DEFAULTUSERNAME;
@@ -31,9 +37,9 @@ class SalesforceService {
                 const resolvedUsername = await state.aliases.getUsername(usernameOrAlias);
                 
                 if (resolvedUsername) {
-                    return resolvedUsername;
+                    return {username: resolvedUsername, alias: usernameOrAlias};
                 } else {
-                    return usernameOrAlias;
+                    return {username: usernameOrAlias, alias: null};
                 }
             }
             
@@ -43,7 +49,7 @@ class SalesforceService {
             
             if (authorizations.length > 0) {
                 console.log(`✅ Using first authorized org: "${authorizations[0].username}"`);
-                return authorizations[0].username;
+                return {username: authorizations[0].username, alias: null};
             }
             
             console.error('❌ No Salesforce orgs found');
@@ -58,25 +64,32 @@ class SalesforceService {
     public async getConnection(): Promise<Connection | null> {
         try {
             const now = new Date();
-            
-            if (this.cachedConnection && this.connectionExpiry && now < this.connectionExpiry) {
-                console.log('♻️ Reusing cached connection');
-                return this.cachedConnection;
-            }
+            const current = await this.getCurrentUsername();
 
-            const username = await this.getCurrentUsername();
-            
-            if (!username) {
-                console.error('No username found');
+            if(!current) {
+                console.error('No current username available');
                 this.clearCache();
                 return null;
             }
+            
+            if (this.cachedConnection && this.connectionExpiry && now < this.connectionExpiry) {
+                if(this.cacheKey && this.cacheKey.username === current.username && this.cacheKey.alias === current.alias) {
+                    console.log('♻️ Reusing cached connection');
+                    return this.cachedConnection;
+                }else{
+                    const oldOrg = this.cacheKey ? (this.cacheKey.alias || this.cacheKey.username) : 'unknown';
+                    const newOrg = current.alias || current.username;
+                    console.log('🔄 Org changed, clearing cache');
+                    this.clearCache('Org Changed');
+                }
+            }
 
-            const authInfo = await AuthInfo.create({ username });
+            const authInfo = await AuthInfo.create({ username: current.username });
             this.cachedConnection = await Connection.create({ authInfo });
             this.connectionExpiry = new Date(now.getTime() + this.CACHE_DURATION_MS);
+            this.cacheKey = {username: current.username, alias: current.alias};
             
-            console.log(`✅ Connected to Salesforce as ${username}`);
+            console.log(`✅ Connected to Salesforce as ${current.username}`);
             return this.cachedConnection;
             
         } catch (error) {
@@ -86,10 +99,14 @@ class SalesforceService {
         }
     }
 
-    public clearCache(): void {
+    public clearCache(reason?: string): void {
         console.log('🔄 Clearing connection cache');
+        if (reason) {
+            console.log(`Reason: ${reason}`);
+        }
         this.cachedConnection = null;
         this.connectionExpiry = null;
+        this.cacheKey = null;
     }
 
     public async query<T>(soql: string): Promise<T[]> {

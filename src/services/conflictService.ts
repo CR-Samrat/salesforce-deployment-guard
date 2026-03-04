@@ -24,6 +24,8 @@ export class ConflictService {
                 return { hasConflict: false };
             }
 
+            const { username: currentUsername, alias: currentAlias } = currentUser;
+
             // Get metadata info
             const metadataInfo = getMetadataInfo(filePath);
             if (!metadataInfo) {
@@ -73,13 +75,13 @@ export class ConflictService {
             
             // Get retrieve map
             const retrieveMap = getRetrieveMap(this.context);
-            const lastRetrieved = retrieveMap.get(name);
+            const lastRetrieved = retrieveMap.get(`${currentUsername}:${name}`);
 
             if (!lastRetrieved) {
                 // Check if current user was last to modify
-                const isCurrentUser = modifiedByUsername.toLowerCase() === currentUser.toLowerCase() ||
-                                    modifiedByName.toLowerCase().includes(currentUser.toLowerCase()) ||
-                                    currentUser.toLowerCase().includes(modifiedByUsername.toLowerCase());
+                const isCurrentUser = modifiedByUsername.toLowerCase() === currentUsername.toLowerCase() ||
+                                    modifiedByName.toLowerCase().includes(currentUsername.toLowerCase()) ||
+                                    currentUsername.toLowerCase().includes(modifiedByUsername.toLowerCase());
 
                 const hasConflict = !isCurrentUser;
                 
