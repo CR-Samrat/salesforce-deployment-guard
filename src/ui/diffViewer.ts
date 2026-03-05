@@ -7,10 +7,15 @@ import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { salesforceService } from '../services/salesforceService';
 import { cleanupTempFile } from '../services/retrieveService';
 
+interface DiffFileInfo{
+    localFilePath: string;
+    componentName: string;
+    componentType: string;
+    currentUser: string;
+}
+
 export async function showLWCDiffAndResolve(
-    localFilePath: string,
-    componentName: string,
-    componentType: string,
+    diffFileInfo: DiffFileInfo,
     context: vscode.ExtensionContext
 ): Promise<boolean> {
     const tempFilesToCleanup: string[] = [];
@@ -23,10 +28,10 @@ export async function showLWCDiffAndResolve(
         }
         
         // Get the LWC bundle path
-        const pathParts = localFilePath.split(/[/\\]/);
-        const parentIndex = componentType === 'LightningComponentBundle' ? pathParts.findIndex(part => part === 'lwc') : pathParts.findIndex(part => part === 'aura');
+        const pathParts = diffFileInfo.localFilePath.split(/[/\\]/);
+        const parentIndex = diffFileInfo.componentType === 'LightningComponentBundle' ? pathParts.findIndex(part => part === 'lwc') : pathParts.findIndex(part => part === 'aura');
         const bundlePath = pathParts.slice(0, parentIndex + 2).join(path.sep);
-        const bundleFileExts = getFileExtensionsForType(componentType);
+        const bundleFileExts = getFileExtensionsForType(diffFileInfo.componentType);
         
         console.log(`Bundle Path: ${bundlePath}`);
         console.log(`Expected Bundle File extensions:`, bundleFileExts);
@@ -74,7 +79,7 @@ export async function showLWCDiffAndResolve(
         
         if (filesWithChanges.length === 0) {
             const deployOnNoDiff = await vscode.window.showInformationMessage(
-                `✅ No differences found in ${componentName} bundle`,
+                `✅ No differences found in ${diffFileInfo.componentName} bundle`,
                 {modal : false},
                 'Deploy Anyway',
                 'Cancel'
@@ -92,7 +97,7 @@ export async function showLWCDiffAndResolve(
         // Show message about which files changed
         const changedFilesList = filesWithChanges.map(f => f.fileName).join(', ');
         vscode.window.showInformationMessage(
-            `📊 ${filesWithChanges.length} file(s) changed in ${componentName}: ${changedFilesList}`
+            `📊 ${filesWithChanges.length} file(s) changed in ${diffFileInfo.componentName}: ${changedFilesList}`
         );
         
         // Open diff for all changed files
@@ -101,14 +106,14 @@ export async function showLWCDiffAndResolve(
                 'vscode.diff',
                 vscode.Uri.file(file.orgPath),
                 vscode.Uri.file(file.localPath),
-                `Difference: Org ⟷ Local - ${componentName}/${file.fileName}`,
+                `Difference: Org ⟷ Local - ${diffFileInfo.componentName}/${file.fileName}`,
                 { preview: false }
             );
         }
         
         // Show resolution dialog
         const choice = await vscode.window.showInformationMessage(
-            `📊 Reviewed ${filesWithChanges.length} changed file(s) in ${componentName}.\n\n` +
+            `📊 Reviewed ${filesWithChanges.length} changed file(s) in ${diffFileInfo.componentName}.\n\n` +
             `Files with changes:\n${filesWithChanges.map(f => '  • ' + f.fileName).join('\n')}\n\n` +
             `How would you like to proceed?`,
             { modal: true },
@@ -126,8 +131,7 @@ export async function showLWCDiffAndResolve(
             
             // Update retrieve map
             const retrieveMap = getRetrieveMap(context);
-            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
-            retrieveMap.set(`${currentUser}:${componentName}`, new Date());
+            retrieveMap.set(`${diffFileInfo.currentUser}:${diffFileInfo.componentName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
             
             vscode.window.showInformationMessage(
@@ -138,7 +142,7 @@ export async function showLWCDiffAndResolve(
         
         if (choice === '➡️ Keep Local (All)') {
             vscode.window.showInformationMessage(
-                `✅ Keeping your local changes for all files in ${componentName}`
+                `✅ Keeping your local changes for all files in ${diffFileInfo.componentName}`
             );
             return true;
         }
@@ -151,8 +155,7 @@ export async function showLWCDiffAndResolve(
             
             // Update retrieve map since they're manually resolving
             const retrieveMap = getRetrieveMap(context);
-            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
-            retrieveMap.set(`${currentUser}:${componentName}`, new Date());
+            retrieveMap.set(`${diffFileInfo.currentUser}:${diffFileInfo.componentName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
             
             return false;
@@ -176,15 +179,18 @@ export async function showDiffAndResolve(
     context: vscode.ExtensionContext
 ): Promise<boolean> {
     let tempFilePath: string | null = null;
+    const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
 
     try {
         const metadataInfo = getMetadataInfo(localFilePath);
+
+        if (!localFilePath || !metadataInfo) {
+            throw new Error('DiffFileInfo: All parameters except currentUser are required');
+        }
         
         if (metadataInfo?.type === 'LightningComponentBundle' || metadataInfo?.type === 'AuraDefinitionBundle') {
             return await showLWCDiffAndResolve(
-                localFilePath,
-                metadataInfo.name,
-                metadataInfo.type,
+                { localFilePath, componentName: metadataInfo.name, componentType: metadataInfo.type, currentUser },
                 context
             );
         }
@@ -227,7 +233,6 @@ export async function showDiffAndResolve(
             // Update retrieve map
             const retrieveMap = getRetrieveMap(context);
             const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
-            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
             retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 
@@ -246,7 +251,6 @@ export async function showDiffAndResolve(
             // Update retrieve map since they're manually resolving
             const retrieveMap = getRetrieveMap(context);
             const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
-            const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
             retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 

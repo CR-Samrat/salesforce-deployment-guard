@@ -2,6 +2,14 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.4.1] - 2026-03-05
+
+### Fixed
+- Connection cache now properly refreshes when switching between Salesforce orgs
+- Connection cache invalidates when org alias changes (e.g., changing "Dev" alias to different username)
+- Temporary comparison files are now automatically cleaned up after use, preventing disk space buildup
+- Retrieve timestamps are now org-scoped to prevent conflicts when working with multiple orgs
+
 ## [0.4.0] - 2026-02-18
 
 ### Added
