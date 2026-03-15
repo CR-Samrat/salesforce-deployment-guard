@@ -2,6 +2,58 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.5.0] - 2026-03-15
+ 
+### 🎉 Major Update - Automatic File Backups
+ 
+### Added
+- **Automatic File Backup System** - Never lose code to overwrites again
+  - One-click enable/disable backup per file
+  - Automatic backups created on every deployment
+  - Up to 5 versions stored per file
+  - Smart cleanup of old backups
+  - Organized by org, metadata type, and file name
+- **Compare with Backup** - Browse and restore previous versions
+  - Visual backup history with timestamps
+  - Side-by-side diff comparison
+  - One-click restore functionality
+  - Works with all supported file types
+- **Backup Preferences Storage** - Per-workspace backup settings
+  - Remember which files have backups enabled
+  - Org-scoped backup management
+  - Simple toggle on/off
+ 
+### Performance
+- **faster username lookups** with cached ConfigAggregator
+  - Reuses ConfigAggregator instance across calls
+  - Smart cache invalidation on org changes
+  - Reduces repeated disk I/O operations
+- **Optimized backup folder structure** using aliases instead of usernames
+  - Cleaner, more readable folder names
+  - Example: `.sfguard-backup/Dev/` instead of `.sfguard-backup/dev@company.com/`
+ 
+### Commands
+- `SF Guard: Enable/Disable Backup for This File` - Toggle automatic backups
+- `SF Guard: Compare with Backup` - View and restore from backup history
+ 
+### Technical Improvements
+- Enhanced `salesforceService.ts` with `cachedAggregator` for better performance
+- Added `getCachedAlias()` and `getCurrentAlias()` methods
+- Implemented smart username caching with alias comparison
+- Bundle file filtering for LWC and Aura (excludes hidden files, node_modules)
+- Recursive folder deletion for old backup cleanup
+ 
+### Backup Structure
+```
+.sfguard-backup/
+├── {org-alias}/
+│   └── {MetadataType}/
+│       └── {ComponentName}/
+│           └── {timestamp}/
+│               ├── {file}.{ext}
+│               └── {file}-meta.xml
+```
+
 ## [0.4.1] - 2026-03-05
 
 ### Fixed
