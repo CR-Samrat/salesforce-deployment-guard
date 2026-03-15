@@ -6,12 +6,16 @@ import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
 import { salesforceService } from '../services/salesforceService';
+import { backupService } from '../services/backupService';
+import { BackupPreferences } from '../storage/backupPreferences';
 
 export class SafeDeployCommand {
     private conflictService: ConflictService;
+    private backupPrefs: BackupPreferences;
 
     constructor(private context: vscode.ExtensionContext) {
         this.conflictService = new ConflictService(context);
+        this.backupPrefs = new BackupPreferences(context);
     }
 
     async execute(): Promise<void> {
@@ -111,6 +115,26 @@ export class SafeDeployCommand {
             const currentUsername = salesforceService.getCachedUsername() || 'unknown_user';
             retrieveMap.set(`${currentUsername}:${metadataInfo.name}`, new Date());
             saveRetrieveMap(this.context, retrieveMap);
+
+            // Backup deployed file
+            const currentAlias = salesforceService.getCachedAlias() || 'unknown_alias';
+            if(currentAlias !== 'unknown_alias' && metadataInfo) {
+                const backupEnabled = this.backupPrefs.isBackupEnabled(
+                    currentAlias,
+                    metadataInfo.name
+                );
+
+                if(backupEnabled) {
+                    const backupCreated = backupService.backupDeployedFile(filePath, metadataInfo, currentAlias);
+                    if (backupCreated) {
+                        console.log(`📁 Backed up deployed file: ${metadataInfo.name}`);
+                    } else {
+                        console.warn(`❌ Failed to back up deployed file: ${metadataInfo.name}`);
+                    }
+                }else {
+                    console.log(`⚠️ Backup not enabled for ${metadataInfo.name} under alias ${currentAlias} - skipping backup`);
+                }
+            }
 
             console.log(`✅ Updated sync timestamp for ${metadataInfo.name} after deployment`);
 

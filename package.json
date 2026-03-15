@@ -2,7 +2,7 @@
   "name": "salesforce-deployment-guard",
   "displayName": "SF Guard",
   "description": "Prevents accidental code overwrites during Salesforce deployments with conflict detection and visual merge tools",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "publisher": "SubhadeepDev",
   "icon": "images/sf-guard-production-logo.png",
   "repository": {
@@ -47,6 +47,16 @@
         "command": "salesforce-deployment-guard.viewSyncStatus",
         "title": "SF Guard: View Sync Status",
         "icon": "$(info)"
+      },
+      {
+        "command": "salesforce-deployment-guard.compareBackup",
+        "title": "SF Guard: Compare with Backup",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "salesforce-deployment-guard.toggleBackup",
+        "title": "SF Guard: Enable/Disable Backup for This File",
+        "icon": "$(check)"
       }
     ],
     "menus": {
@@ -60,6 +70,16 @@
           "command": "salesforce-deployment-guard.safeDeploy",
           "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@2"
+        },
+        {
+          "command": "salesforce-deployment-guard.compareBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "salesforce@3"
+        },
+        {
+          "command": "salesforce-deployment-guard.toggleBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "salesforce@4"
         }
       ],
       "editor/context": [
@@ -71,8 +91,24 @@
         {
           "command": "salesforce-deployment-guard.safeDeploy",
           "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
-
           "group": "salesforce@2"
+        },
+        {
+          "command": "salesforce-deployment-guard.compareBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "salesforce@3"
+        },
+        {
+          "command": "salesforce-deployment-guard.toggleBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "salesforce@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "salesforce-deployment-guard.compareBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "navigation"
         }
       ]
     }

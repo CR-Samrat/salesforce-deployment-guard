@@ -6,9 +6,9 @@ class SalesforceService {
     private connectionExpiry: Date | null = null;
     private readonly CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
     private cacheKey: {username: string; alias: string | null} | null = null;
+    private cachedAggregator: ConfigAggregator | null = null;
 
     private constructor() {
-
     }
 
     public static getInstance(): SalesforceService {
@@ -22,17 +22,46 @@ class SalesforceService {
         return this.cacheKey?.username || null;
     }
 
+    public getCachedAlias(): string | null {
+        return this.cacheKey?.alias || null;
+    }
+
+    public async getCurrentAlias(): Promise<string | null> {
+        const agg = await this.getAggregator();
+
+        if(!agg) {
+            console.error('Failed to get ConfigAggregator');
+            return null;
+        }
+
+        let usernameOrAlias = (agg.getInfo(OrgConfigProperties.TARGET_ORG)?.value as string | undefined) ||
+                                    process.env.SF_TARGET_ORG ||
+                                    process.env.SFDX_DEFAULTUSERNAME;
+
+        return usernameOrAlias || null;
+    }
+
+    public async getAggregator(): Promise<ConfigAggregator | null> {
+        if(!this.cachedAggregator) {
+            this.cachedAggregator = await ConfigAggregator.create();
+        }
+        await this.cachedAggregator.reload();
+
+        return this.cachedAggregator;
+    }
+
     public async getCurrentUsername(): Promise<{username: string; alias: string | null} | null> {
         try {
             // Step 1: Try to get username or alias
-            const agg = await ConfigAggregator.create();
-            await agg.reload();
-            let usernameOrAlias = (agg.getInfo(OrgConfigProperties.TARGET_ORG)?.value as string | undefined) ||
-                                    process.env.SF_TARGET_ORG ||
-                                    process.env.SFDX_DEFAULTUSERNAME;
+            const usernameOrAlias = await this.getCurrentAlias();
             
             // Step 2: If we got an alias, fetch username from it
             if (usernameOrAlias) {
+                if(this.cacheKey && this.cacheKey.alias === usernameOrAlias) {
+                    console.log('♻️ Reusing cached username for alias:', usernameOrAlias);
+                    return {username: this.cacheKey.username, alias: usernameOrAlias};
+                }
+
                 const state = await StateAggregator.getInstance();
                 const resolvedUsername = await state.aliases.getUsername(usernameOrAlias);
                 
@@ -77,8 +106,6 @@ class SalesforceService {
                     console.log('♻️ Reusing cached connection');
                     return this.cachedConnection;
                 }else{
-                    const oldOrg = this.cacheKey ? (this.cacheKey.alias || this.cacheKey.username) : 'unknown';
-                    const newOrg = current.alias || current.username;
                     console.log('🔄 Org changed, clearing cache');
                     this.clearCache('Org Changed');
                 }
@@ -107,6 +134,7 @@ class SalesforceService {
         this.cachedConnection = null;
         this.connectionExpiry = null;
         this.cacheKey = null;
+        this.cachedAggregator = null;
     }
 
     public async query<T>(soql: string): Promise<T[]> {
