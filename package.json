@@ -49,14 +49,19 @@
         "icon": "$(info)"
       },
       {
-        "command": "salesforce-deployment-guard.compareBackup",
-        "title": "SF Guard: Compare with Backup",
-        "icon": "$(diff)"
-      },
-      {
         "command": "salesforce-deployment-guard.toggleBackup",
         "title": "SF Guard: Enable/Disable Backup for This File",
         "icon": "$(check)"
+      },
+      {
+        "command": "salesforce-deployment-guard.takeBackup",
+        "title": "SF Guard: Keep Backup for This File",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "salesforce-deployment-guard.compareBackup",
+        "title": "SF Guard: Compare with Backup",
+        "icon": "$(diff)"
       }
     ],
     "menus": {
@@ -72,14 +77,19 @@
           "group": "salesforce@2"
         },
         {
-          "command": "salesforce-deployment-guard.compareBackup",
+          "command": "salesforce-deployment-guard.toggleBackup",
           "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@3"
         },
         {
-          "command": "salesforce-deployment-guard.toggleBackup",
+          "command": "salesforce-deployment-guard.takeBackup",
           "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@4"
+        },
+        {
+          "command": "salesforce-deployment-guard.compareBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "salesforce@5"
         }
       ],
       "editor/context": [
@@ -94,14 +104,19 @@
           "group": "salesforce@2"
         },
         {
-          "command": "salesforce-deployment-guard.compareBackup",
+          "command": "salesforce-deployment-guard.toggleBackup",
           "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@3"
         },
         {
-          "command": "salesforce-deployment-guard.toggleBackup",
+          "command": "salesforce-deployment-guard.takeBackup",
           "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
           "group": "salesforce@4"
+        },
+        {
+          "command": "salesforce-deployment-guard.compareBackup",
+          "when": "resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)",
+          "group": "salesforce@5"
         }
       ],
       "editor/title": [

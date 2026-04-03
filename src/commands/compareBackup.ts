@@ -113,33 +113,85 @@ export class CompareBackupCommand {
         }
     }
 
+    private formatLabel(index: number, filePath: string): string {
+        const fileName = filePath.split(path.sep).pop() || 'unknown_file';
+        return index === 0
+            ? `$(history) Latest Backup - ${fileName}`
+            : `$(history) Backup ${index + 1} - ${fileName}`;
+    }
+
     private async showBackupPicker(
         backups: Array<{ timestamp: string; path: string; date: Date }>,
         fileName: string
     ): Promise<{ timestamp: string; path: string } | undefined> {
-        
-        const items = backups.map((backup, index) => ({
-            label: index === 0 ? '$(history) Latest Backup' : `$(history) Backup ${index + 1}`,
-            description: this.formatDate(backup.date),
-            detail: `Created: ${backup.date.toLocaleString()}`,
-            timestamp: backup.timestamp,
-            path: backup.path
-        }));
 
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: `Select a backup to compare with ${fileName}`,
-            matchOnDescription: true,
-            matchOnDetail: true
+        return new Promise((resolve) => {
+
+            const quickPick = vscode.window.createQuickPick();
+
+            const items = backups.map((backup, index) => ({
+                label: this.formatLabel(index, backup.path),
+                description: this.formatDate(backup.date),
+                detail: `Created: ${backup.date.toLocaleString()}`,
+                timestamp: backup.timestamp,
+                path: backup.path,
+                buttons: [
+                    {
+                        iconPath: new vscode.ThemeIcon("edit"),
+                        tooltip: "Rename Backup"
+                    },
+                    {
+                        iconPath: new vscode.ThemeIcon("lock"),
+                        tooltip: "Lock Backup"
+                    }
+                ]
+            }));
+
+            quickPick.items = items;
+            quickPick.placeholder = `Select a backup to compare with ${fileName}`;
+            quickPick.matchOnDescription = true;
+            quickPick.matchOnDetail = true;
+
+            // Handle item selection
+            quickPick.onDidAccept(() => {
+                const selected = quickPick.selectedItems[0] as any;
+                quickPick.hide();
+
+                if (!selected) {
+                    resolve(undefined);
+                    return;
+                }
+
+                resolve({
+                    timestamp: selected.timestamp,
+                    path: selected.path
+                });
+            });
+
+            // Handle button clicks (🔥 important part)
+            quickPick.onDidTriggerItemButton(e => {
+                const item = e.item as any;
+                const button = e.button as vscode.QuickInputButton;
+
+                const iconId = (button.iconPath as vscode.ThemeIcon).id;
+
+                if (iconId === "edit") {
+                    vscode.window.showInformationMessage(`Rename clicked for ${item.label}`);
+                    // 👉 Add rename logic here
+                }
+
+                if (iconId === "lock") {
+                    vscode.window.showInformationMessage(`Lock clicked for ${item.label}`);
+                    // 👉 Add lock logic here
+                }
+            });
+
+            quickPick.onDidHide(() => {
+                resolve(undefined);
+            });
+
+            quickPick.show();
         });
-
-        if (!selected) {
-            return undefined;
-        }
-
-        return {
-            timestamp: selected.timestamp,
-            path: selected.path
-        };
     }
 
     private formatDate(date: Date): string {

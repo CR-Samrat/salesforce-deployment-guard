@@ -1,5 +1,3 @@
-// src/commands/toggleBackup.ts - SIMPLE VERSION
-
 import * as vscode from 'vscode';
 import { getMetadataInfo } from '../utils/metadataUtils';
 import { salesforceService } from '../services/salesforceService';
