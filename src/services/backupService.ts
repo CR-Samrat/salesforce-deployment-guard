@@ -2,11 +2,15 @@ import * as vscode from 'vscode';
 import * as path from "path";
 import * as fs from "fs";
 import { MetadataInfo } from '../types';
+import { BackupMetadataStorage, BackupMetadata } from '../storage/backupMetadata';
 
 export class BackupService {
     private readonly MAX_BACKUPS = 5;
+    private metadataStorage: BackupMetadataStorage;
 
-    constructor() {}
+    constructor(context: vscode.ExtensionContext) {
+        this.metadataStorage = new BackupMetadataStorage(context);
+    }
 
     fetchRetrieveableFiles(metadataInfo: MetadataInfo, filePath: string): string[] {
         if (!metadataInfo) {
@@ -124,7 +128,9 @@ export class BackupService {
             }
 
             // Create timestamp folder
-            const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
+            const currentTimestamp = new Date();
+            const timestamp = currentTimestamp.toISOString().replace(/:/g, '-').replace(/\./g, '-');
+            const displayTimestamp = this.formatTimestampForDisplay(currentTimestamp);
             
             // Base backup directory for this component
             const componentBackupDir = path.join(
@@ -156,14 +162,33 @@ export class BackupService {
                 const fileContent = fs.readFileSync(sourceFilePath, 'utf-8');
                 const backupFilePath = path.join(timestampBackupDir, fileName);
 
-                // Write backup file (clean filename!)
+                // Write backup file
                 fs.writeFileSync(backupFilePath, fileContent, 'utf-8');
                 console.log(`✅ Backed up: ${fileName}`);
                 backupCount++;
             }
 
             if (backupCount > 0) {
-                this.cleanupOldBackups(componentBackupDir);
+                // Save metadata for this backup
+                const backupMetadata: BackupMetadata = {
+                    timestamp: timestamp,
+                    displayName: displayTimestamp,
+                    isLocked: false,
+                    createdAt: new Date(),
+                    folderName: timestamp
+                };
+                
+                this.metadataStorage.saveBackupMetadata(
+                    currentAlias,
+                    metadataInfo.type,
+                    metadataInfo.name,
+                    timestamp,
+                    backupMetadata
+                );
+
+                // Cleanup old backups (respecting locks)
+                this.cleanupOldBackups(componentBackupDir, currentAlias, metadataInfo.type, metadataInfo.name);
+                
                 console.log(`✅ Backup created: ${timestampBackupDir}`);
                 return true;
             } else {
@@ -177,34 +202,42 @@ export class BackupService {
         }
     }
 
-    private cleanupOldBackups(componentBackupDir: string): void {
+    private cleanupOldBackups(
+        componentBackupDir: string,
+        alias: string,
+        metadataType: string,
+        componentName: string
+    ): void {
         try {
             if (!fs.existsSync(componentBackupDir)) {
                 return;
             }
 
-            // Get all backup folders (timestamps)
-            const backupFolders = fs.readdirSync(componentBackupDir)
-                .filter(item => {
-                    const fullPath = path.join(componentBackupDir, item);
-                    return fs.statSync(fullPath).isDirectory();
-                })
-                .map(folder => ({
-                    name: folder,
-                    path: path.join(componentBackupDir, folder),
-                    timestamp: fs.statSync(path.join(componentBackupDir, folder)).mtime
-                }))
-                .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Newest first
+            // Get folders to delete (respecting locks)
+            const foldersToDelete = this.metadataStorage.getBackupsToDelete(
+                alias,
+                metadataType,
+                componentName,
+                this.MAX_BACKUPS
+            );
 
-            // Keep only MAX_BACKUPS, delete the rest
-            if (backupFolders.length > this.MAX_BACKUPS) {
-                const foldersToDelete = backupFolders.slice(this.MAX_BACKUPS);
+            // Delete the folders
+            for (const folderName of foldersToDelete) {
+                const folderPath = path.join(componentBackupDir, folderName);
+                this.deleteFolder(folderPath);
                 
-                for (const folder of foldersToDelete) {
-                    this.deleteFolder(folder.path);
-                    console.log(`🗑️ Deleted old backup: ${folder.name}`);
-                }
+                // Delete metadata
+                this.metadataStorage.deleteBackupMetadata(
+                    alias,
+                    metadataType,
+                    componentName,
+                    folderName
+                );
+                
+                console.log(`🗑️ Deleted old backup: ${folderName}`);
+            }
 
+            if (foldersToDelete.length > 0) {
                 console.log(`✅ Cleaned up ${foldersToDelete.length} old backup(s)`);
             }
 
@@ -226,6 +259,22 @@ export class BackupService {
             fs.rmdirSync(folderPath);
         }
     }
-}
 
-export const backupService = new BackupService();
+    private formatTimestampForDisplay(date: Date): string {
+        // Parse the timestamp
+        const options: Intl.DateTimeFormatOptions = {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        };
+
+        return date.toLocaleString('en-US', options);
+    }
+
+    getMetadataStorage(): BackupMetadataStorage {
+        return this.metadataStorage;
+    }
+}

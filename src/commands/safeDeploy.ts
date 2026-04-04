@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ConflictService } from '../services/conflictService';
 import { isSalesforceFile, getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
-import { salesforceService } from '../services/salesforceService';
-import { backupService } from '../services/backupService';
+import { salesforceService, ConflictService, getBackupService } from '../services';
 import { BackupPreferences } from '../storage/backupPreferences';
 
 export class SafeDeployCommand {
@@ -125,6 +123,7 @@ export class SafeDeployCommand {
                 );
 
                 if(backupEnabled) {
+                    const backupService = getBackupService();
                     const backupCreated = backupService.backupDeployedFile(filePath, metadataInfo, currentAlias);
                     if (backupCreated) {
                         console.log(`📁 Backed up deployed file: ${metadataInfo.name}`);

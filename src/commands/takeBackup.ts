@@ -1,15 +1,12 @@
 import * as vscode from 'vscode';
-import { salesforceService } from '../services/salesforceService';
+import { salesforceService, getBackupService } from '../services';
 import { getMetadataInfo } from '../utils/metadataUtils';
-import { backupService } from '../services/backupService';
 
 export class TakeBackupCommand {
 
-    constructor(private context: vscode.ExtensionContext) {
-    }
+    constructor(private context: vscode.ExtensionContext) {}
 
     async execute(uri?: vscode.Uri): Promise<void> {
-        // Get current file
         const filePath = uri?.fsPath || vscode.window.activeTextEditor?.document.uri.fsPath;
         
         if (!filePath) {
@@ -17,7 +14,6 @@ export class TakeBackupCommand {
             return;
         }
         
-        // Get metadata info
         const metadataInfo = getMetadataInfo(filePath);
         if (!metadataInfo) {
             vscode.window.showErrorMessage('Not a Salesforce file');
@@ -26,12 +22,24 @@ export class TakeBackupCommand {
 
         try {
             const currentAlias = await salesforceService.getCurrentAlias() || 'unknown_alias';
-            if(currentAlias !== 'unknown_alias' && metadataInfo) {
-                const backupCreated = backupService.backupDeployedFile(filePath, metadataInfo, currentAlias);
+            
+            if (currentAlias !== 'unknown_alias' && metadataInfo) {
+                const backupService = getBackupService();
+                
+                const backupCreated = backupService.backupDeployedFile(
+                    filePath,
+                    metadataInfo,
+                    currentAlias
+                );
+                
                 if (backupCreated) {
-                    vscode.window.showInformationMessage(`✅ Backup taken for ${metadataInfo.name} in org ${currentAlias}`);
+                    vscode.window.showInformationMessage(
+                        `✅ Backup taken for ${metadataInfo.name} in org ${currentAlias}`
+                    );
                 } else {
-                    vscode.window.showErrorMessage(`Failed to take backup for ${metadataInfo.name}`);
+                    vscode.window.showErrorMessage(
+                        `Failed to take backup for ${metadataInfo.name}`
+                    );
                 }
             }
         } catch (error) {
