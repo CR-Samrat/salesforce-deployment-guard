@@ -2,6 +2,61 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.6.0] - 2026-04-06
+ 
+### 🎉 Major Update - Enhanced Backup Management
+ 
+### Added
+- **Take Immediate Backup** - New command to manually backup files anytime
+  - No need to wait for deployment
+  - Right-click → "SF Guard: Take Backup"
+  - Creates timestamped backup instantly
+  
+- **Backup Management Features** - Full control over your backups
+  - **Rename Backups** - Give backups meaningful names (e.g., "Production Release v1.0", "GR02-Bug Fixes")
+  - **Lock Backups** - Protect important backups from automatic deletion
+    - Locked backups are never deleted, even when exceeding 5 backup limit
+    - When 6th backup is created, oldest *unlocked* backup is deleted
+    - Visual indicator (🔒) shows locked status
+  - **Manual Delete** - Remove specific backups you no longer need
+    - Confirmation dialog prevents accidental deletion
+    - Removes both backup folder and metadata
+  
+- **Smart Conflict Detection** - Context-aware messaging
+  - Detects if YOU modified the file vs a teammate
+  - Different messages for each scenario:
+    - **Teammate modified:** "⚠️ WARNING: Conflict Detected!"
+    - **You modified:** "⚠️ WARNING: Your local file is outdated!"
+  - Different action buttons:
+    - **Teammate conflict:** "🔍 Resolve Conflict"
+    - **Your changes:** "🔎 Review Changes"
+  - Shows who made the last modification
+ 
+### Enhanced
+- **Backup Picker UI** - Improved QuickPick interface
+  - Four action buttons per backup (Rename, Lock/Unlock, Compare, Delete)
+  - Time-ago display (e.g., "2 hours ago", "3 days ago")
+  - Lock status indicator (🔒)
+  - Custom names displayed prominently
+  
+- **User Experience** - Better messaging throughout
+  - Context-aware conflict warnings
+  - Clearer button labels
+  - Validation on backup rename (prevents empty names, max 100 chars)
+  - Confirmation dialogs for destructive actions
+ 
+### Commands
+- `SF Guard: Take Backup` - Create instant backup without deploying
+- Backup management accessible via "SF Guard: Compare with Backup"
+ 
+### Technical Improvements
+- Service locator pattern for BackupService initialization
+- Metadata storage tracks rename, lock status, and creation date
+- Cleanup logic respects locked backups
+- Separate conflict types: `'conflict'` vs `'overwrite'`
+ 
+---
+
 ## [0.5.0] - 2026-03-15
  
 ### 🎉 Major Update - Automatic File Backups

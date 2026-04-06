@@ -3,7 +3,7 @@
 > **Never lose code to accidental overwrites again.** Automatic conflict detection, backups, and recovery for Salesforce developers.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.0-green)]()
 [![Rating](https://img.shields.io/badge/rating-★★★★★-yellow)]()
 
 ---
@@ -158,6 +158,7 @@ Command Palette → **SF Guard: View Sync Status**. See all tracked files, their
 |---------|-------------|
 | `SF Guard: Safe Deploy to Org` | Deploy with automatic conflict detection and backup |
 | `SF Guard: Retrieve from Org` | Retrieve file and track sync status |
+| `SF Guard: Take Backup` | **NEW!** Create instant backup without deploying |
 | `SF Guard: Compare with Backup` | View backup history and restore previous versions |
 | `SF Guard: Enable/Disable Backup` | Toggle automatic backups for this file |
 | `SF Guard: View Sync Status` | See all tracked files and their status |
