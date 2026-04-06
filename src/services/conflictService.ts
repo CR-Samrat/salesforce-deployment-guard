@@ -77,16 +77,17 @@ export class ConflictService {
             const retrieveMap = getRetrieveMap(this.context);
             const lastRetrieved = retrieveMap.get(`${currentUsername}:${name}`);
 
-            if (!lastRetrieved) {
-                // Check if current user was last to modify
-                const isCurrentUser = modifiedByUsername.toLowerCase() === currentUsername.toLowerCase() ||
+            // Check if current user was last to modify
+            const isCurrentUser = modifiedByUsername.toLowerCase() === currentUsername.toLowerCase() ||
                                     modifiedByName.toLowerCase().includes(currentUsername.toLowerCase()) ||
                                     currentUsername.toLowerCase().includes(modifiedByUsername.toLowerCase());
 
+            if (!lastRetrieved) {
                 const hasConflict = !isCurrentUser;
                 
                 return {
                     hasConflict,
+                    conflictType: 'conflict',
                     modifiedBy: modifiedByName,
                     modifiedDate: orgLastModified.toLocaleString(),
                     reason: hasConflict ? 'File modified in org after last retrieve' : undefined
@@ -95,6 +96,7 @@ export class ConflictService {
 
             // Check if org was modified after last retrieve
             const hasConflict = orgLastModified > lastRetrieved;
+            const conflictType = hasConflict ? !isCurrentUser ? 'conflict' : 'overwrite' : 'unknown';
 
             console.log(`📊 Conflict Check:`);
             console.log(`   Last Retrieved: ${lastRetrieved.toLocaleString()}`);
@@ -103,9 +105,14 @@ export class ConflictService {
 
             return {
                 hasConflict,
+                conflictType,
                 modifiedBy: modifiedByName,
                 modifiedDate: orgLastModified.toLocaleString(),
-                reason: hasConflict ? 'File modified in org after last retrieve' : undefined
+                reason: hasConflict ? 
+                            conflictType === 'conflict' ? 
+                                'File modified in org after last retrieve' : 
+                                'The version of this file in the salesforce org has been updated since your last sync.' : 
+                            undefined
             };
 
         } catch (error) {

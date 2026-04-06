@@ -57,19 +57,30 @@ export class SafeDeployCommand {
         });
 
         if (conflictInfo?.hasConflict) {
-            const choice = await vscode.window.showWarningMessage(
-                `⚠️ WARNING: Conflict Detected! ${conflictInfo.reason}\n\n` +
+            const conflictMessage = `⚠️ WARNING: Conflict Detected! ${conflictInfo.reason}\n\n` +
                 `File: "${fileName}"\n` +
                 `Last modified by: ${conflictInfo.modifiedBy}\n` +
                 `Modified on: ${conflictInfo.modifiedDate}\n\n` +
-                `Please retrieve the file first to sync with Salesforce Guard.`,
+                `Please retrieve the file first to sync with Salesforce Guard.`;
+
+            const overwriteMessage = `⚠️ WARNING: Your local file is outdated! \n\n`+
+                `${conflictInfo.reason}\n` +
+                `Deploying now may overwrite changes in the org.\n\n` +
+                `File: "${fileName}"\n` +
+                `Modified on: ${conflictInfo.modifiedDate}\n\n` +
+                `Please review your changes before proceeding.`;
+
+            const diffCheckBtnLabel = conflictInfo.conflictType === 'conflict' ? '🔍 Resolve Conflict' : '🔎 Review Changes';
+
+            const choice = await vscode.window.showWarningMessage(
+                conflictInfo.conflictType === 'conflict' ? conflictMessage : overwriteMessage,
                 { modal: true },
-                '🔍 Resolve Conflict & Deploy',
+                diffCheckBtnLabel,
                 '⬇️ Retrieve Now',
                 '🚀 Deploy Anyway'
             );
 
-            if (choice === '🔍 Resolve Conflict & Deploy') {
+            if (choice === diffCheckBtnLabel) {
                 const resolved = await showDiffAndResolve(filePath, this.context);
                 if (resolved) {
                     vscode.window.showInformationMessage('✅ Conflict resolved. Proceeding to deploy...');
