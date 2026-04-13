@@ -8,6 +8,10 @@ export interface MetadataInfo {
 export function getMetadataInfo(filePath: string): MetadataInfo | null {
     const fileExt = path.extname(filePath).toLowerCase();
     const fileName = path.basename(filePath, fileExt);
+
+    if (fileExt === ".xml") {
+        return handleXmlMetadata(filePath);
+    }
     
     if (fileExt === '.cls') {
         return { type: 'ApexClass', name: fileName };
@@ -32,7 +36,7 @@ export function getMetadataInfo(filePath: string): MetadataInfo | null {
     }
 
     // Lightning Web Components
-    if (['.html', '.js', '.css','.xml'].includes(fileExt)) {
+    if (['.html', '.js', '.css'].includes(fileExt)) {
         const pathParts = filePath.split(/[/\\]/);
         const lwcIndex = pathParts.findIndex(part => part === 'lwc');
 
@@ -56,27 +60,42 @@ export function getMetadataInfo(filePath: string): MetadataInfo | null {
     return null;
 }
 
-export function isSalesforceFile(filePath: string): boolean {
-    const salesforceExtensions = [
-        // Apex
-        '.cls', '.trigger', '.apex',
-        // Visualforce
-        '.page', '.component',
-        // LWC
-        '.html', '.js', '.css', '.xml',
-        // Aura
-        '.cmp', '.app', '.evt', '.intf', '.auradoc', '.design', '.svg', '.tokens'
-    ];
-    
-    const fileExtension = path.extname(filePath).toLowerCase();
+function handleXmlMetadata(filePath: string): MetadataInfo | null {
+    const fileName = path.basename(filePath);
+    let metadataType = '';
+    let componentName = '';
 
-    // For extensions that could be LWC, Aura, or regular files, check path
-    if (['.js', '.html', '.css', '.xml'].includes(fileExtension)) {
-        return filePath.includes('/lwc/') || filePath.includes('\\lwc\\') ||
-               filePath.includes('/aura/') || filePath.includes('\\aura\\');
+    if (filePath.includes('/classes/') || filePath.includes('\\classes\\')) {
+        metadataType = 'ApexClass';
+        componentName = fileName.replace('.cls-meta.xml', '');
+    }else if(filePath.includes('/triggers/') || filePath.includes('\\triggers\\')) {
+        metadataType = 'ApexTrigger';
+        componentName = fileName.replace('.trigger-meta.xml', '');
+    }else if(filePath.includes('/pages/') || filePath.includes('\\pages\\')) {
+        metadataType = 'ApexPage';
+        componentName = fileName.replace('.page-meta.xml', '');
+    }else if(filePath.includes('/components/') || filePath.includes('\\components\\')) {
+        metadataType = 'ApexComponent';
+        componentName = fileName.replace('.component-meta.xml', '');
+    }else if(filePath.includes('/lwc/') || filePath.includes('\\lwc\\')) {
+        metadataType = 'LightningComponentBundle';
+        const pathParts = filePath.split(/[/\\]/);
+        const lwcIndex = pathParts.findIndex(part => part === 'lwc');
+
+        if (lwcIndex !== -1 && lwcIndex < pathParts.length - 1) {
+            componentName = pathParts[lwcIndex + 1];
+        }
+    }else if(filePath.includes('/aura/') || filePath.includes('\\aura\\')) {
+        metadataType = 'AuraDefinitionBundle';
+        const pathParts = filePath.split(/[/\\]/);
+        const auraIndex = pathParts.findIndex(part => part === 'aura');
+
+        if (auraIndex !== -1 && auraIndex < pathParts.length - 1) {
+            componentName = pathParts[auraIndex + 1];
+        }
     }
-    
-    return salesforceExtensions.includes(fileExtension);
+
+    return metadataType && componentName ? { type: metadataType, name: componentName } : null;
 }
 
 export function getFileExtensionsForType(metadataType: string): string[] {
@@ -85,7 +104,7 @@ export function getFileExtensionsForType(metadataType: string): string[] {
             return ['.html', '.js', '.css', '.xml', '.svg'];
         
         case 'AuraDefinitionBundle':
-            return ['.cmp', '.app', '.evt', '.intf', '.auradoc', '.css', '.js', '.design', '.svg', '.tokens'];
+            return ['.cmp', '.app', '.evt', '.intf', '.auradoc', '.css', '.js', '.design', '.svg', '.tokens', '.xml'];
         
         default:
             return [];

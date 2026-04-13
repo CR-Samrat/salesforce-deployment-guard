@@ -2,6 +2,9 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.6.1] - 2026-04-13
+- Minor bug fixes
+
 ## [0.6.0] - 2026-04-06
  
 ### 🎉 Major Update - Enhanced Backup Management

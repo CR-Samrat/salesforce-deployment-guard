@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { isSalesforceFile, getMetadataInfo } from '../utils/metadataUtils';
+import { getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { salesforceService } from '../services/salesforceService';
 
@@ -22,11 +22,6 @@ export class TrackedRetrieveCommand {
             const filePath = uri.fsPath;
             const fileName = path.basename(filePath);
 
-            if (!isSalesforceFile(filePath)) {
-                vscode.window.showErrorMessage(`${fileName} is not a Salesforce file`);
-                return;
-            }
-
             const metadataInfo = getMetadataInfo(filePath);
             if (!metadataInfo) {
                 vscode.window.showErrorMessage(`Unsupported Salesforce file type for retrieve: ${fileName}`);
@@ -40,9 +35,9 @@ export class TrackedRetrieveCommand {
                 const lwcIndex = pathParts.findIndex(part => part === 'lwc');
                 const bundlePath = pathParts.slice(0, lwcIndex + 2).join(path.sep);
 
-                await vscode.commands.executeCommand('sf.retrieve.source.path', vscode.Uri.file(bundlePath));
+                await vscode.commands.executeCommand('sf.metadata.retrieve.source.path', vscode.Uri.file(bundlePath));
             } else {
-                await vscode.commands.executeCommand('sf.retrieve.source.path', uri);
+                await vscode.commands.executeCommand('sf.metadata.retrieve.source.path', uri);
             }
 
             // Update retrieve timestamp

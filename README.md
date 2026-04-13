@@ -3,7 +3,7 @@
 > **Never lose code to accidental overwrites again.** Automatic conflict detection, backups, and recovery for Salesforce developers.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-0.6.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
 [![Rating](https://img.shields.io/badge/rating-★★★★★-yellow)]()
 
 ---

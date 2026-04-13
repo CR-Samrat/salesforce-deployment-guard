@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { isSalesforceFile, getMetadataInfo } from '../utils/metadataUtils';
+import { getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
@@ -26,11 +26,6 @@ export class SafeDeployCommand {
 
         const filePath = editor.document.fileName;
         const fileName = path.basename(filePath);
-
-        if (!isSalesforceFile(filePath)) {
-            vscode.window.showErrorMessage(`${fileName} is not a Salesforce file`);
-            return;
-        }
 
         const metadataInfo = getMetadataInfo(filePath);
         if (!metadataInfo) {
@@ -114,10 +109,12 @@ export class SafeDeployCommand {
                 const lwcIndex = pathParts.findIndex(part => part === 'lwc');
                 const bundlePath = pathParts.slice(0, lwcIndex + 2).join(path.sep);
 
-                await vscode.commands.executeCommand('sf.deploy.source.path', vscode.Uri.file(bundlePath));
+                await vscode.commands.executeCommand('sf.metadata.deploy.source.path', vscode.Uri.file(bundlePath));
             } else {
-                await vscode.commands.executeCommand('sf.deploy.source.path', vscode.Uri.file(filePath));
+                await vscode.commands.executeCommand('sf.metadata.deploy.source.path', vscode.Uri.file(filePath));
             }
+
+            await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
 
             // Update retrieve timestamp after successful deploy
             const retrieveMap = getRetrieveMap(this.context);
