@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ComponentSet, DeployMessage } from '@salesforce/source-deploy-retrieve';
 import { getMetadataInfo } from '../utils/metadataUtils';
 import { salesforceService } from './salesforceService';
+import { sfGuardOutput } from './outputChannel';
 
 export interface DeployResultSummary {
     success: boolean;
@@ -37,6 +38,8 @@ export class DeployService {
         }
 
         const deployPath = this.getDeployPath(filePath, metadataInfo.type);
+        console.log(`Resolved deploy path for ${metadataInfo.name}: ${deployPath}`);
+
         const componentSet = ComponentSet.fromSource([deployPath]);
         componentSet.projectDirectory = projectDirectory;
 
@@ -49,6 +52,9 @@ export class DeployService {
 
         const result = await deploy.pollStatus();
         if (result.response.success) {
+            sfGuardOutput.info(
+                `Deployment succeeded for ${metadataInfo.name}. Components deployed: ${result.response.numberComponentsDeployed}/${result.response.numberComponentsTotal}.`
+            );
             return {
                 success: true,
                 message: `Successfully deployed ${metadataInfo.name}.`
@@ -69,6 +75,11 @@ export class DeployService {
             details.unshift(result.response.errorMessage);
         } else if (result.response.stateDetail) {
             details.unshift(result.response.stateDetail);
+        }
+
+        sfGuardOutput.error(`Deployment failed for ${metadataInfo.name}.`);
+        for (const detail of details) {
+            sfGuardOutput.error(`  ${detail}`);
         }
 
         return {

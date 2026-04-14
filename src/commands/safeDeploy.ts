@@ -4,7 +4,7 @@ import { getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
-import { salesforceService, ConflictService, getBackupService, deployService } from '../services';
+import { salesforceService, ConflictService, getBackupService, deployService, sfGuardOutput } from '../services';
 import { BackupPreferences } from '../storage/backupPreferences';
 
 export class SafeDeployCommand {
@@ -21,6 +21,7 @@ export class SafeDeployCommand {
 
         if (!editor) {
             vscode.window.showErrorMessage('No file is open');
+            sfGuardOutput.warn('Deploy aborted because no active editor was found.');
             return;
         }
 
@@ -30,11 +31,15 @@ export class SafeDeployCommand {
         const metadataInfo = getMetadataInfo(filePath);
         if (!metadataInfo) {
             vscode.window.showErrorMessage(`Unsupported Salesforce file type for deploy: ${fileName}`);
+            sfGuardOutput.warn(`Deploy aborted for unsupported file type: ${filePath}`);
             return;
         }
 
+        sfGuardOutput.info(`Starting safe deploy for ${metadataInfo.type} ${metadataInfo.name} (${fileName}).`);
+
         if (editor.document.isDirty) {
             await editor.document.save();
+            sfGuardOutput.info(`Saved dirty editor before deploy: ${fileName}`);
         }
 
         let conflictInfo: ConflictInfo | undefined;
@@ -50,6 +55,10 @@ export class SafeDeployCommand {
         });
 
         if (conflictInfo?.hasConflict) {
+            sfGuardOutput.warn(
+                `Conflict detected for ${fileName}. Type: ${conflictInfo.conflictType}. Modified by: ${conflictInfo.modifiedBy}.`
+            );
+
             const conflictMessage = `WARNING: Conflict Detected! ${conflictInfo.reason}\n\n` +
                 `File: "${fileName}"\n` +
                 `Last modified by: ${conflictInfo.modifiedBy}\n` +
@@ -74,21 +83,26 @@ export class SafeDeployCommand {
             );
 
             if (choice === diffCheckBtnLabel) {
+                sfGuardOutput.info(`User opened diff resolution for ${fileName}.`);
                 const resolved = await showDiffAndResolve(filePath, this.context);
                 if (resolved) {
                     vscode.window.showInformationMessage('Conflict resolved. Proceeding to deploy...');
+                    sfGuardOutput.info(`Conflict resolved for ${fileName}. Continuing deploy.`);
                 } else {
                     vscode.window.showInformationMessage('Deployment cancelled due to unresolved conflict.');
+                    sfGuardOutput.warn(`Deploy cancelled because conflict remained unresolved for ${fileName}.`);
                     return;
                 }
             }
 
             if (!choice) {
                 vscode.window.showInformationMessage('Deployment cancelled');
+                sfGuardOutput.info(`Deploy cancelled by user for ${fileName}.`);
                 return;
             }
 
             if (choice === 'Retrieve Now') {
+                sfGuardOutput.info(`User chose retrieve-before-deploy for ${fileName}.`);
                 await vscode.commands.executeCommand(
                     'salesforce-deployment-guard.retrieve',
                     vscode.Uri.file(filePath)
@@ -118,31 +132,32 @@ export class SafeDeployCommand {
             const currentUsername = salesforceService.getCachedUsername() || 'unknown_user';
             retrieveMap.set(`${currentUsername}:${metadataInfo.name}`, new Date());
             saveRetrieveMap(this.context, retrieveMap);
+            console.log(`Updated sync timestamp after deploy for ${metadataInfo.name}.`);
 
             const currentAlias = salesforceService.getCachedAlias() || 'unknown_alias';
             if (currentAlias !== 'unknown_alias') {
-                const backupEnabled = this.backupPrefs.isBackupEnabled(
-                    currentAlias,
-                    metadataInfo.name
-                );
+                const backupEnabled = this.backupPrefs.isBackupEnabled(currentAlias, metadataInfo.name);
 
                 if (backupEnabled) {
                     const backupService = getBackupService();
                     const backupCreated = backupService.backupDeployedFile(filePath, metadataInfo, currentAlias);
                     if (backupCreated) {
-                        console.log(`Backed up deployed file: ${metadataInfo.name}`);
+                        sfGuardOutput.info(`Created backup for deployed component ${metadataInfo.name} (${currentAlias}).`);
                     } else {
-                        console.warn(`Failed to back up deployed file: ${metadataInfo.name}`);
+                        sfGuardOutput.warn(`Backup creation failed for deployed component ${metadataInfo.name} (${currentAlias}).`);
                     }
                 } else {
-                    console.log(`Backup not enabled for ${metadataInfo.name} under alias ${currentAlias} - skipping backup`);
+                    sfGuardOutput.info(`Backup skipped because it is disabled for ${metadataInfo.name} (${currentAlias}).`);
                 }
             }
 
-            console.log(`Updated sync timestamp for ${metadataInfo.name} after deployment`);
             vscode.window.showInformationMessage(`Deployed successfully: ${fileName}`);
+            sfGuardOutput.info(`Deploy completed successfully for ${fileName}.`);
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to deploy ${fileName}: ${error}`);
+            const errorText = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to deploy ${fileName}: ${errorText}`);
+            sfGuardOutput.error(`Deploy failed for ${fileName}. ${errorText}`);
+            sfGuardOutput.show();
         }
     }
 }

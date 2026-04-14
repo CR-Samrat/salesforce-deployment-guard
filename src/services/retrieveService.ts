@@ -5,6 +5,7 @@ import { ComponentSet, RetrieveMessage } from '@salesforce/source-deploy-retriev
 import { salesforceService } from './salesforceService';
 import { getMetadataInfo } from '../utils/metadataUtils';
 import { sanitizeSOQL, sanitizeFileName } from '../utils/sanitization';
+import { sfGuardOutput } from './outputChannel';
 
 export interface RetrieveResultSummary {
     success: boolean;
@@ -93,7 +94,6 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
             }
         } else {
             const query = `SELECT Body FROM ${metadataType} WHERE Name='${sanitizeSOQL(fileName)}'`;
-
             const result = await salesforceService.query(query);
 
             if (result.length > 0) {
@@ -108,7 +108,8 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
 
         return null;
     } catch (error) {
-        console.error('Error retrieving org version:', error);
+        const errorText = error instanceof Error ? error.message : String(error);
+        sfGuardOutput.error(`Failed to fetch org version for diff on ${filePath}. ${errorText}`);
         return null;
     }
 }
@@ -146,6 +147,8 @@ export class RetrieveService {
         }
 
         const retrievePath = this.getRetrievePath(filePath, metadataInfo.type);
+        console.log(`Resolved retrieve path for ${metadataInfo.name}: ${retrievePath}`);
+
         const componentSet = ComponentSet.fromSource([retrievePath]);
         componentSet.projectDirectory = projectDirectory;
 
@@ -157,16 +160,26 @@ export class RetrieveService {
 
         const result = await retrieve.pollStatus();
         if (result.response.success) {
+            const fileProps = Array.isArray(result.response.fileProperties)
+                ? result.response.fileProperties.length
+                : 1;
+            sfGuardOutput.info(`Retrieve succeeded for ${metadataInfo.name}. Retrieved file entries: ${fileProps}.`);
             return {
                 success: true,
                 message: `Successfully retrieved ${metadataInfo.name}.`
             };
         }
 
+        const details = this.collectFailureDetails(result.response.messages);
+        sfGuardOutput.error(`Retrieve failed for ${metadataInfo.name}.`);
+        for (const detail of details) {
+            sfGuardOutput.error(`  ${detail}`);
+        }
+
         return {
             success: false,
             message: `Retrieve failed for ${metadataInfo.name}.`,
-            details: this.collectFailureDetails(result.response.messages)
+            details
         };
     }
 

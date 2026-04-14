@@ -3,22 +3,24 @@ import { salesforceService } from './salesforceService';
 import { BackupService } from './backupService';
 import { deployService } from './deployService';
 import { retrieveService } from './retrieveService';
+import { sfGuardOutput } from './outputChannel';
 
 let backupServiceInstance: BackupService | null = null;
 
 export function initializeServices(context: vscode.ExtensionContext): void {
-    // Initialize BackupService with context
+    sfGuardOutput.initialize();
+    context.subscriptions.push({ dispose: () => sfGuardOutput.dispose() });
+
     backupServiceInstance = new BackupService(context);
 
-    // Workspace change listener
     context.subscriptions.push(
         vscode.workspace.onDidChangeWorkspaceFolders(() => {
-            console.log('📂 Workspace changed - clearing SF connection cache');
+            sfGuardOutput.info('Workspace changed. Clearing Salesforce connection cache.');
             salesforceService.clearCache();
         })
     );
 
-    console.log('✅ Services initialized');
+    sfGuardOutput.info('Services initialized.');
 }
 
 export function getBackupService(): BackupService {
@@ -28,9 +30,9 @@ export function getBackupService(): BackupService {
     return backupServiceInstance;
 }
 
-// Export services
 export { salesforceService } from './salesforceService';
 export { ConflictService } from './conflictService';
 export { BackupService } from './backupService';
 export { deployService } from './deployService';
 export { retrieveService } from './retrieveService';
+export { sfGuardOutput } from './outputChannel';

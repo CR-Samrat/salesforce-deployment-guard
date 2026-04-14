@@ -1,15 +1,15 @@
 import { AuthInfo, Connection, StateAggregator, ConfigAggregator, OrgConfigProperties } from '@salesforce/core';
+import { sfGuardOutput } from './outputChannel';
 
 class SalesforceService {
     private static instance: SalesforceService;
     private cachedConnection: Connection | null = null;
     private connectionExpiry: Date | null = null;
-    private readonly CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
-    private cacheKey: {username: string; alias: string | null} | null = null;
+    private readonly CACHE_DURATION_MS = 30 * 60 * 1000;
+    private cacheKey: { username: string; alias: string | null } | null = null;
     private cachedAggregator: ConfigAggregator | null = null;
 
-    private constructor() {
-    }
+    private constructor() {}
 
     public static getInstance(): SalesforceService {
         if (!SalesforceService.instance) {
@@ -29,20 +29,20 @@ class SalesforceService {
     public async getCurrentAlias(): Promise<string | null> {
         const agg = await this.getAggregator();
 
-        if(!agg) {
-            console.error('Failed to get ConfigAggregator');
+        if (!agg) {
+            sfGuardOutput.error('Failed to load Salesforce config aggregator.');
             return null;
         }
 
-        let usernameOrAlias = (agg.getInfo(OrgConfigProperties.TARGET_ORG)?.value as string | undefined) ||
-                                    process.env.SF_TARGET_ORG ||
-                                    process.env.SFDX_DEFAULTUSERNAME;
+        const usernameOrAlias = (agg.getInfo(OrgConfigProperties.TARGET_ORG)?.value as string | undefined) ||
+            process.env.SF_TARGET_ORG ||
+            process.env.SFDX_DEFAULTUSERNAME;
 
         return usernameOrAlias || null;
     }
 
     public async getAggregator(): Promise<ConfigAggregator | null> {
-        if(!this.cachedAggregator) {
+        if (!this.cachedAggregator) {
             this.cachedAggregator = await ConfigAggregator.create();
         }
         await this.cachedAggregator.reload();
@@ -50,42 +50,38 @@ class SalesforceService {
         return this.cachedAggregator;
     }
 
-    public async getCurrentUsername(): Promise<{username: string; alias: string | null} | null> {
+    public async getCurrentUsername(): Promise<{ username: string; alias: string | null } | null> {
         try {
-            // Step 1: Try to get username or alias
             const usernameOrAlias = await this.getCurrentAlias();
-            
-            // Step 2: If we got an alias, fetch username from it
+
             if (usernameOrAlias) {
-                if(this.cacheKey && this.cacheKey.alias === usernameOrAlias) {
-                    console.log('♻️ Reusing cached username for alias:', usernameOrAlias);
-                    return {username: this.cacheKey.username, alias: usernameOrAlias};
+                if (this.cacheKey && this.cacheKey.alias === usernameOrAlias) {
+                    console.log(`Reusing cached username for alias ${usernameOrAlias}.`);
+                    return { username: this.cacheKey.username, alias: usernameOrAlias };
                 }
 
                 const state = await StateAggregator.getInstance();
                 const resolvedUsername = await state.aliases.getUsername(usernameOrAlias);
-                
+
                 if (resolvedUsername) {
-                    return {username: resolvedUsername, alias: usernameOrAlias};
-                } else {
-                    return {username: usernameOrAlias, alias: null};
+                    return { username: resolvedUsername, alias: usernameOrAlias };
                 }
+                return { username: usernameOrAlias, alias: null };
             }
-            
-            // Step 3: Fallback - get from AuthInfo (first authorized org)
-            console.log('⚠️ No target-org found in config, using first authorized org');
+
+            sfGuardOutput.warn('No target org found in config. Falling back to first authorized org.');
             const authorizations = await AuthInfo.listAllAuthorizations();
-            
+
             if (authorizations.length > 0) {
-                console.log(`✅ Using first authorized org: "${authorizations[0].username}"`);
-                return {username: authorizations[0].username, alias: null};
+                sfGuardOutput.info(`Using first authorized org ${authorizations[0].username}.`);
+                return { username: authorizations[0].username, alias: null };
             }
-            
-            console.error('❌ No Salesforce orgs found');
+
+            sfGuardOutput.error('No Salesforce org authorizations were found.');
             return null;
-            
         } catch (error) {
-            console.error('Error getting current username:', error);
+            const errorText = error instanceof Error ? error.message : String(error);
+            sfGuardOutput.error(`Failed to determine current Salesforce user. ${errorText}`);
             return null;
         }
     }
@@ -95,41 +91,42 @@ class SalesforceService {
             const now = new Date();
             const current = await this.getCurrentUsername();
 
-            if(!current) {
-                console.error('No current username available');
+            if (!current) {
+                sfGuardOutput.error('No current Salesforce username available.');
                 this.clearCache();
                 return null;
             }
-            
+
             if (this.cachedConnection && this.connectionExpiry && now < this.connectionExpiry) {
-                if(this.cacheKey && this.cacheKey.username === current.username && this.cacheKey.alias === current.alias) {
-                    console.log('♻️ Reusing cached connection');
+                if (this.cacheKey && this.cacheKey.username === current.username && this.cacheKey.alias === current.alias) {
+                    console.log(`Reusing cached Salesforce connection for ${current.username}.`);
                     return this.cachedConnection;
-                }else{
-                    console.log('🔄 Org changed, clearing cache');
-                    this.clearCache('Org Changed');
                 }
+
+                console.log('Salesforce org changed. Clearing cached connection.');
+                this.clearCache('Org changed');
             }
 
             const authInfo = await AuthInfo.create({ username: current.username });
             this.cachedConnection = await Connection.create({ authInfo });
             this.connectionExpiry = new Date(now.getTime() + this.CACHE_DURATION_MS);
-            this.cacheKey = {username: current.username, alias: current.alias};
-            
-            console.log(`✅ Connected to Salesforce as ${current.username}`);
+            this.cacheKey = { username: current.username, alias: current.alias };
+
+            sfGuardOutput.info(`Connected to Salesforce as ${current.username}.`);
             return this.cachedConnection;
-            
         } catch (error) {
-            console.error('Error creating Salesforce connection:', error);
+            const errorText = error instanceof Error ? error.message : String(error);
+            sfGuardOutput.error(`Failed to create Salesforce connection. ${errorText}`);
             this.clearCache();
             return null;
         }
     }
 
     public clearCache(reason?: string): void {
-        console.log('🔄 Clearing connection cache');
         if (reason) {
-            console.log(`Reason: ${reason}`);
+            console.log(`Clearing Salesforce connection cache. Reason: ${reason}.`);
+        } else {
+            console.log('Clearing Salesforce connection cache.');
         }
         this.cachedConnection = null;
         this.connectionExpiry = null;
