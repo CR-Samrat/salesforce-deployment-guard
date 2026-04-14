@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { salesforceService } from './salesforceService';
 import { BackupService } from './backupService';
+import { deployService } from './deployService';
+import { retrieveService } from './retrieveService';
 
 let backupServiceInstance: BackupService | null = null;
 
@@ -30,3 +32,5 @@ export function getBackupService(): BackupService {
 export { salesforceService } from './salesforceService';
 export { ConflictService } from './conflictService';
 export { BackupService } from './backupService';
+export { deployService } from './deployService';
+export { retrieveService } from './retrieveService';

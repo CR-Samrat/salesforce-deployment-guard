@@ -2,18 +2,17 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
-import { salesforceService } from '../services/salesforceService';
+import { retrieveService, salesforceService } from '../services';
 
 export class TrackedRetrieveCommand {
     constructor(private context: vscode.ExtensionContext) {}
 
     async execute(uri?: vscode.Uri): Promise<void> {
         try {
-            // Get file URI
             if (!uri) {
                 const editor = vscode.window.activeTextEditor;
                 if (!editor) {
-                    vscode.window.showErrorMessage("No file is open");
+                    vscode.window.showErrorMessage('No file is open');
                     return;
                 }
                 uri = editor.document.uri;
@@ -28,30 +27,31 @@ export class TrackedRetrieveCommand {
                 return;
             }
 
-            vscode.window.showInformationMessage(`⬇️ Retrieving ${fileName}...`);
+            const retrieveResult = await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Retrieving ${fileName} from Salesforce...`,
+                cancellable: false
+            }, async () => retrieveService.retrieve(filePath));
 
-            if (metadataInfo.type === 'LightningComponentBundle') {
-                const pathParts = filePath.split(/[/\\]/);
-                const lwcIndex = pathParts.findIndex(part => part === 'lwc');
-                const bundlePath = pathParts.slice(0, lwcIndex + 2).join(path.sep);
+            if (!retrieveResult.success) {
+                const details = retrieveResult.details?.slice(0, 5).join('\n');
+                const errorMessage = details
+                    ? `${retrieveResult.message}\n${details}`
+                    : retrieveResult.message;
 
-                await vscode.commands.executeCommand('sf.metadata.retrieve.source.path', vscode.Uri.file(bundlePath));
-            } else {
-                await vscode.commands.executeCommand('sf.metadata.retrieve.source.path', uri);
+                throw new Error(errorMessage);
             }
 
-            // Update retrieve timestamp
             const retrieveMap = getRetrieveMap(this.context);
             const currentUser = await salesforceService.getCurrentUsername();
             const key = `${currentUser?.username}:${metadataInfo.name}`;
             retrieveMap.set(key, new Date());
             saveRetrieveMap(this.context, retrieveMap);
 
-            console.log(`✅ Tracked retrieve for ${metadataInfo.name} at ${new Date().toLocaleString()}`);
-            vscode.window.showInformationMessage(`✅ Retrieved and synced: ${fileName}`);
-
+            console.log(`Retrieved and synced ${metadataInfo.name} at ${new Date().toLocaleString()}`);
+            vscode.window.showInformationMessage(`Retrieved successfully: ${fileName}`);
         } catch (error) {
-            vscode.window.showErrorMessage(`❌ Retrieve failed: ${error}`);
+            vscode.window.showErrorMessage(`Failed to retrieve ${path.basename(uri?.fsPath ?? 'file')}: ${error}`);
         }
     }
 }
