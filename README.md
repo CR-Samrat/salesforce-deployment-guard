@@ -3,7 +3,7 @@
 > **Never lose code to accidental overwrites again.** Automatic conflict detection, backups, and recovery for Salesforce developers.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.7.0-green)]()
 [![Rating](https://img.shields.io/badge/rating-★★★★★-yellow)]()
 
 ---
@@ -96,8 +96,7 @@ SF Guard is your safety net for Salesforce development:
 4. Click **Install**
 
 **Requirements:**
-- Salesforce CLI (`sf` or `sfdx`)
-- Salesforce Extensions Pack for VS Code
+- Salesforce CLI authentication available on your machine
 - Authenticated Salesforce org
 
 ---
@@ -117,6 +116,12 @@ Right-click on any Salesforce file → **SF Guard: Retrieve from Org**. This ret
 ![GIF: safe-deploy.gif](./images/safe-deploy.gif)
 
 Right-click file → **SF Guard: Safe Deploy to Org**. SF Guard checks for conflicts, creates a backup (if enabled), and deploys safely. If a conflict is detected, you'll see a warning with options to resolve.
+
+---
+
+### 2.5. SF Guard Output Panel
+
+SF Guard includes its own output panel for deployment, retrieval, conflict detection, and detailed error logs. When an operation fails, the `SF Guard` output panel opens automatically so you can inspect the exact reason quickly.
 
 ---
 

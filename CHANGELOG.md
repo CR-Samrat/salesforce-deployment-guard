@@ -2,6 +2,17 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.7.0] - 2026-04-14
+
+### Added
+- Native Salesforce metadata deployment logic powered by `@salesforce/source-deploy-retrieve`
+- Native Salesforce metadata retrieval logic powered by `@salesforce/source-deploy-retrieve`
+- Dedicated `SF Guard` output panel for deploy, retrieve, conflict, and error logs
+
+### Changed
+- Deploy and retrieve flows are now independent of Salesforce Extension Pack command IDs
+- Deployment and retrieval messaging is cleaner and more professional
+
 ## [0.6.1] - 2026-04-13
 - Minor bug fixes
 
