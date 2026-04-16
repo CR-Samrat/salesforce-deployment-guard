@@ -151,12 +151,12 @@ export class SafeDeployCommand {
                 }
             }
 
-            vscode.window.showInformationMessage(`Deployed successfully: ${fileName}`);
-            sfGuardOutput.info(`Deploy completed successfully for ${fileName}.`);
+            vscode.window.showInformationMessage(`Deployed successfully: ${metadataInfo.name}`);
+            sfGuardOutput.info(`Deploy completed successfully for ${metadataInfo.name}.`);
         } catch (error) {
             const errorText = error instanceof Error ? error.message : String(error);
-            vscode.window.showErrorMessage(`Failed to deploy ${fileName}: ${errorText}`);
-            sfGuardOutput.error(`Deploy failed for ${fileName}. ${errorText}`);
+            vscode.window.showErrorMessage(`Failed to deploy ${metadataInfo.name}: ${errorText}`);
+            sfGuardOutput.error(`Deploy failed for ${metadataInfo.name}. ${errorText}`);
             sfGuardOutput.show();
         }
     }

@@ -104,7 +104,7 @@ export function getFileExtensionsForType(metadataType: string): string[] {
             return ['.html', '.js', '.css', '.xml', '.svg'];
         
         case 'AuraDefinitionBundle':
-            return ['.cmp', '.app', '.evt', '.intf', '.auradoc', '.css', '.js', '.design', '.svg', '.tokens', '.xml'];
+            return ['.cmp', '.app', '.evt', '.intf', '.auradoc', '.css', '.js', '.design', '.svg', '.tokens'];
         
         default:
             return [];

@@ -195,6 +195,11 @@ export async function showDiffAndResolve(
             );
         }
 
+        // Check if current file is an xml file
+        if (path.extname(localFilePath) === '.xml') {
+            localFilePath = localFilePath.replace('-meta.xml', '');
+        }
+
         // Get org version of the file
         const orgFilePath = await retrieveOrgVersion(localFilePath);
 
