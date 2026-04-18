@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from "fs";
 
 export interface MetadataInfo {
     type: string;
@@ -96,6 +97,100 @@ function handleXmlMetadata(filePath: string): MetadataInfo | null {
     }
 
     return metadataType && componentName ? { type: metadataType, name: componentName } : null;
+}
+
+export function fetchRetrieveableFiles(metadataInfo: MetadataInfo, filePath: string): string[] {
+    if (!metadataInfo) {
+        console.log('📂 No metadata info available - skipping backup');
+        return [];
+    }
+
+    switch (metadataInfo.type) {
+        case "ApexClass":
+            return [
+                metadataInfo.name + '.cls',
+                metadataInfo.name + '.cls-meta.xml'
+            ];
+
+        case "ApexTrigger":
+            return [
+                metadataInfo.name + '.trigger',
+                metadataInfo.name + '.trigger-meta.xml'
+            ];
+
+        case "ApexPage":
+            return [
+                metadataInfo.name + '.page',
+                metadataInfo.name + '.page-meta.xml'
+            ];
+
+        case "ApexComponent":
+            return [
+                metadataInfo.name + '.component',
+                metadataInfo.name + '.component-meta.xml'
+            ];
+
+        case "LightningComponentBundle":
+            return getBundleFiles(filePath, 'LWC');
+
+        case "AuraDefinitionBundle":
+            return getBundleFiles(filePath, 'Aura');
+
+        default:
+            console.log(`📂 Unsupported metadata type: ${metadataInfo.type} - skipping backup`);
+            return [];
+    }
+}
+
+function getBundleFiles(filePath: string, bundleType: 'LWC' | 'Aura'): string[] {
+    try {
+        const bundleDirPath = path.dirname(filePath);
+    
+        if (!fs.existsSync(bundleDirPath)) {
+            console.log(`⚠️ Bundle directory not found: ${bundleDirPath}`);
+            return [];
+        }
+
+        const allFiles = fs.readdirSync(bundleDirPath);
+        
+        // Filter out unwanted files
+        const filteredFiles = allFiles.filter(file => {
+            // Skip hidden files (.DS_Store, .git, etc.)
+            if (file.startsWith('.')) {
+                return false;
+            }
+            
+            // Skip node_modules
+            if (file === 'node_modules') {
+                return false;
+            }
+            
+            // For LWC: only .js, .html, .css, .xml, .svg files
+            if (bundleType === 'LWC') {
+                const ext = path.extname(file).toLowerCase();
+                return ['.js', '.html', '.css', '.xml', '.svg'].includes(ext);
+            }
+            
+            // For Aura: only Aura-specific extensions
+            if (bundleType === 'Aura') {
+                const ext = path.extname(file).toLowerCase();
+                return [
+                    '.cmp', '.app', '.evt', '.intf',
+                    '.js', '.css', '.design', '.svg',
+                    '.auradoc', '.tokens', '.xml'
+                ].includes(ext);
+            }
+            
+            return true;
+        });
+
+        console.log(`📂 Found ${filteredFiles.length} ${bundleType} file(s) for backup: ${filteredFiles.join(', ')}`);
+        return filteredFiles;
+
+    } catch (error) {
+        console.error(`❌ Error reading ${bundleType} bundle directory:`, error);
+        return [];
+    }
 }
 
 export function getFileExtensionsForType(metadataType: string): string[] {

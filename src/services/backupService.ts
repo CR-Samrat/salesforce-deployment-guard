@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { MetadataInfo } from '../types';
 import { BackupMetadataStorage, BackupMetadata } from '../storage/backupMetadata';
+import { fetchRetrieveableFiles } from '../utils/metadataUtils';
 
 export class BackupService {
     private readonly MAX_BACKUPS = 5;
@@ -10,100 +11,6 @@ export class BackupService {
 
     constructor(context: vscode.ExtensionContext) {
         this.metadataStorage = new BackupMetadataStorage(context);
-    }
-
-    fetchRetrieveableFiles(metadataInfo: MetadataInfo, filePath: string): string[] {
-        if (!metadataInfo) {
-            console.log('📂 No metadata info available - skipping backup');
-            return [];
-        }
-
-        switch (metadataInfo.type) {
-            case "ApexClass":
-                return [
-                    metadataInfo.name + '.cls',
-                    metadataInfo.name + '.cls-meta.xml'
-                ];
-
-            case "ApexTrigger":
-                return [
-                    metadataInfo.name + '.trigger',
-                    metadataInfo.name + '.trigger-meta.xml'
-                ];
-
-            case "ApexPage":
-                return [
-                    metadataInfo.name + '.page',
-                    metadataInfo.name + '.page-meta.xml'
-                ];
-
-            case "ApexComponent":
-                return [
-                    metadataInfo.name + '.component',
-                    metadataInfo.name + '.component-meta.xml'
-                ];
-
-            case "LightningComponentBundle":
-                return this.getBundleFiles(filePath, 'LWC');
-
-            case "AuraDefinitionBundle":
-                return this.getBundleFiles(filePath, 'Aura');
-
-            default:
-                console.log(`📂 Unsupported metadata type: ${metadataInfo.type} - skipping backup`);
-                return [];
-        }
-    }
-
-    private getBundleFiles(filePath: string, bundleType: 'LWC' | 'Aura'): string[] {
-        try {
-            const bundleDirPath = path.dirname(filePath);
-        
-            if (!fs.existsSync(bundleDirPath)) {
-                console.log(`⚠️ Bundle directory not found: ${bundleDirPath}`);
-                return [];
-            }
-
-            const allFiles = fs.readdirSync(bundleDirPath);
-        
-            // Filter out unwanted files
-            const filteredFiles = allFiles.filter(file => {
-                // Skip hidden files (.DS_Store, .git, etc.)
-                if (file.startsWith('.')) {
-                    return false;
-                }
-            
-                // Skip node_modules
-                if (file === 'node_modules') {
-                    return false;
-                }
-            
-                // For LWC: only .js, .html, .css, .xml, .svg files
-                if (bundleType === 'LWC') {
-                    const ext = path.extname(file).toLowerCase();
-                    return ['.js', '.html', '.css', '.xml', '.svg'].includes(ext);
-                }
-            
-                // For Aura: only Aura-specific extensions
-                if (bundleType === 'Aura') {
-                    const ext = path.extname(file).toLowerCase();
-                    return [
-                        '.cmp', '.app', '.evt', '.intf',
-                        '.js', '.css', '.design', '.svg',
-                        '.auradoc', '.tokens', '.xml'
-                    ].includes(ext);
-                }
-            
-                return true;
-            });
-
-            console.log(`📂 Found ${filteredFiles.length} ${bundleType} file(s) for backup: ${filteredFiles.join(', ')}`);
-            return filteredFiles;
-
-        } catch (error) {
-            console.error(`❌ Error reading ${bundleType} bundle directory:`, error);
-            return [];
-        }
     }
 
     backupDeployedFile(filePath: string, metadataInfo: MetadataInfo, currentAlias: string): boolean {
@@ -120,7 +27,7 @@ export class BackupService {
                 return false;
             }
 
-            const filesToBackup = this.fetchRetrieveableFiles(metadataInfo, filePath);
+            const filesToBackup = fetchRetrieveableFiles(metadataInfo, filePath);
             
             if (filesToBackup.length === 0) {
                 console.log('📂 No files to backup - skipping');

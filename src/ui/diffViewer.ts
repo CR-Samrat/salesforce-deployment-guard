@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { getMetadataInfo, getFileExtensionsForType } from '../utils/metadataUtils';
+import { getMetadataInfo, getFileExtensionsForType, fetchRetrieveableFiles } from '../utils/metadataUtils';
 import { retrieveOrgVersion } from '../services/retrieveService';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { salesforceService } from '../services/salesforceService';
@@ -178,7 +178,7 @@ export async function showDiffAndResolve(
     localFilePath: string,
     context: vscode.ExtensionContext
 ): Promise<boolean> {
-    let tempFilePath: string | null = null;
+    const tempFilesToCleanup: string[] = [];
     const currentUser = salesforceService.getCachedUsername() || 'unknown_user';
 
     try {
@@ -188,31 +188,87 @@ export async function showDiffAndResolve(
             throw new Error('DiffFileInfo: All parameters except currentUser are required');
         }
         
-        if (metadataInfo?.type === 'LightningComponentBundle' || metadataInfo?.type === 'AuraDefinitionBundle') {
-            return await showLWCDiffAndResolve(
-                { localFilePath, componentName: metadataInfo.name, componentType: metadataInfo.type, currentUser },
-                context
+        // if (metadataInfo?.type === 'LightningComponentBundle' || metadataInfo?.type === 'AuraDefinitionBundle') {
+        //     return await showLWCDiffAndResolve(
+        //         { localFilePath, componentName: metadataInfo.name, componentType: metadataInfo.type, currentUser },
+        //         context
+        //     );
+        // }
+
+        const relevantFiles = fetchRetrieveableFiles(metadataInfo, localFilePath);
+        if(!relevantFiles) {
+            throw new Error('DiffFileInfo: No relevant files found for this metadata type');
+        }
+
+        const filesWithChanges: Array<{
+            localPath: string;
+            orgPath: string;
+            fileName: string;
+            extension: string;
+        }> = [];
+
+        vscode.window.showInformationMessage('🔍 Comparing files with org...');
+
+        for(const file of relevantFiles) {
+            const localPath = path.join(path.dirname(localFilePath), file);
+            if (!fs.existsSync(localPath)) {
+                console.warn(`Local file not found for diff: ${localPath}`);
+                continue;
+            }
+            const orgPath = await retrieveOrgVersion(localPath);
+            console.log('Retrieved org version for', file, 'Org Path:', orgPath);
+
+            if(orgPath) {
+                const localContent = fs.readFileSync(localPath, 'utf8');
+                const orgContent = fs.readFileSync(orgPath, 'utf8');
+
+                if(localContent !== orgContent) {
+                    filesWithChanges.push({
+                        localPath,
+                        orgPath,
+                        fileName: file,
+                        extension: path.extname(file)
+                    });
+                }
+
+                tempFilesToCleanup.push(orgPath);
+            }
+        }
+
+        if (filesWithChanges.length === 0) {
+            const deployOnNoDiff = await vscode.window.showInformationMessage(
+                `✅ No differences found in ${metadataInfo.name} bundle`,
+                {modal : false},
+                'Deploy Anyway',
+                'Cancel'
             );
+
+            if(deployOnNoDiff && deployOnNoDiff === 'Deploy Anyway') {
+                return true;
+            }
+
+            if(!deployOnNoDiff || deployOnNoDiff === 'Cancel') {
+                return false;
+            }
         }
 
-        // Get org version of the file
-        const orgFilePath = await retrieveOrgVersion(localFilePath);
-
-        if (!orgFilePath) {
-            vscode.window.showErrorMessage('Could not retrieve org version for diff.');
-            return false;
-        }
-
-        tempFilePath = orgFilePath;
-        const fileName = path.basename(localFilePath);
+        // Show message about which files changed
+        const changedFilesList = filesWithChanges.map(f => f.fileName).join(', ');
+        vscode.window.showInformationMessage(
+            `📊 ${filesWithChanges.length} file(s) changed in ${metadataInfo.name}: ${changedFilesList}`
+        );
 
         // Open difference editor
-        await vscode.commands.executeCommand(
-            'vscode.diff',
-            vscode.Uri.file(orgFilePath),
-            vscode.Uri.file(localFilePath),
-            `Difference: Org ⟷ Local - ${fileName}`
-        );
+        for(const file of filesWithChanges) {
+            await vscode.commands.executeCommand(
+                'vscode.diff',
+                vscode.Uri.file(file.orgPath),
+                vscode.Uri.file(file.localPath),
+                `Difference: Org ⟷ Local - ${file.fileName}`,
+                { preview: false }
+            );
+        }
+        
 
         const choice = await vscode.window.showInformationMessage(
             `📊 Compare your changes with the org version.\n\n` +
@@ -227,8 +283,10 @@ export async function showDiffAndResolve(
 
         if (choice === '⬅️ Use Org Version') {
             // Overwrite local file with org version
-            const orgContent = fs.readFileSync(orgFilePath, 'utf8');
-            fs.writeFileSync(localFilePath, orgContent, 'utf8');
+            for (const file of filesWithChanges) {
+                const orgContent = fs.readFileSync(file.orgPath, 'utf8');
+                fs.writeFileSync(file.localPath, orgContent, 'utf8');
+            }
 
             // Update retrieve map
             const retrieveMap = getRetrieveMap(context);
@@ -236,17 +294,20 @@ export async function showDiffAndResolve(
             retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 
-            vscode.window.showInformationMessage(`✅ Local file updated with org version: ${fileName}`);
+            vscode.window.showInformationMessage(`✅ Local file updated with org version: ${fileBaseName}`);
             return true;
         }
 
         if (choice === '➡️ Keep Local Version') {
-            vscode.window.showInformationMessage(`✅ Keeping your local changes for: ${fileName}`);
+            vscode.window.showInformationMessage(`✅ Keeping your local changes for: ${metadataInfo.name}`);
             return true;
         }
 
         if (choice === '✏️ Merge Manually') {
-            vscode.window.showInformationMessage(`🔧 Please manually merge the changes for: ${fileName}`);
+            vscode.window.showInformationMessage(
+                `🔧 Please manually merge the changes. ` +
+                `Diff views are open for ${filesWithChanges.length} file(s).`
+            );
 
             // Update retrieve map since they're manually resolving
             const retrieveMap = getRetrieveMap(context);
@@ -263,7 +324,7 @@ export async function showDiffAndResolve(
         vscode.window.showErrorMessage(`Failed to show difference view. Reason: ${error}`);
         return false;
     } finally {
-        if (tempFilePath) {
+        for (const tempFilePath of tempFilesToCleanup) {
             cleanupTempFile(tempFilePath);
         }
     }
