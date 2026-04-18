@@ -3,7 +3,7 @@
 > **Never lose code to accidental overwrites again.** Automatic conflict detection, backups, and recovery for Salesforce developers.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-0.7.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.8.0-green)]()
 [![Rating](https://img.shields.io/badge/rating-★★★★★-yellow)]()
 
 ---
@@ -55,7 +55,7 @@ SF Guard is your safety net for Salesforce development:
 - Prevents accidental overwrites
 - Works across all team members
 
-### 📁 Automatic Backups (NEW in v0.5.0!)
+### 📁 Automatic Backups
 - Backs up files automatically on deploy
 - Stores up to 5 versions per file
 - Organized by org and file type
@@ -115,13 +115,13 @@ Right-click on any Salesforce file → **SF Guard: Retrieve from Org**. This ret
 
 ![GIF: safe-deploy.gif](./images/safe-deploy.gif)
 
-Right-click file → **SF Guard: Safe Deploy to Org**. SF Guard checks for conflicts, creates a backup (if enabled), and deploys safely. If a conflict is detected, you'll see a warning with options to resolve.
+Right-click file → **SF Guard: Safe Deploy to Org**. SF Guard checks for conflicts, creates a backup (if enabled), and deploys safely. If a conflict is detected, you'll see a warning with options to resolve. If a deployment gets stuck in a busy org queue, you can now cancel it directly from the deploy progress notification.
 
 ---
 
 ### 2.5. SF Guard Output Panel
 
-SF Guard includes its own output panel for deployment, retrieval, conflict detection, and detailed error logs. When an operation fails, the `SF Guard` output panel opens automatically so you can inspect the exact reason quickly.
+SF Guard includes its own output panel for deployment, retrieval, conflict detection, and detailed error logs. It now also shows structured deploy and retrieve summaries with the files involved in each operation. When an operation fails, the `SF Guard` output panel opens automatically so you can inspect the exact reason quickly.
 
 ---
 
@@ -129,7 +129,7 @@ SF Guard includes its own output panel for deployment, retrieval, conflict detec
 
 ![GIF: diff-viewer.gif](./images/diff-viewer.gif)
 
-When a conflict is detected, the visual diff viewer opens automatically showing side-by-side comparison. Choose to merge manually, use org version, or keep your local changes.
+When a conflict is detected, the visual diff viewer opens automatically showing side-by-side comparison. SF Guard now compares the full retrievable file set for the component, so Apex classes, Visualforce pages, Visualforce components, LWC bundles, and Aura bundles are reviewed more completely. Choose to merge manually, use org version, or keep your local changes.
 
 ---
 
@@ -396,7 +396,7 @@ sf org login web -a Dev
 
 ## 🗺️ Roadmap
 
-### v0.6.0 (Planned)
+### v0.9.0 (Planned)
 - Batch deployment with conflict check
 - Deployment history dashboard
 - Custom backup retention rules

@@ -2,6 +2,17 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.8.0] - 2026-04-18
+
+### Added
+- Deploy progress can now be cancelled directly from the SF Guard progress notification
+- Structured deploy and retrieve summaries in the `SF Guard` output panel with file-level details
+
+### Changed
+- Diff comparison now evaluates the full component file set for Apex classes, triggers, Visualforce pages, and Visualforce components instead of only the currently opened file
+- Diff flow has been consolidated into a single comparison path for a cleaner and more consistent review experience
+- Metadata XML comparison support has been improved across supported component types
+
 ## [0.7.0] - 2026-04-14
 
 ### Added
