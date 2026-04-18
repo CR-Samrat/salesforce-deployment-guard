@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ComponentSet, RetrieveMessage } from '@salesforce/source-deploy-retrieve';
 import { salesforceService } from './salesforceService';
-import { getMetadataInfo } from '../utils/metadataUtils';
+import { getMetadataInfo, MetadataInfo } from '../utils/metadataUtils';
 import { sanitizeSOQL, sanitizeFileName } from '../utils/sanitization';
 import { sfGuardOutput } from './outputChannel';
 
@@ -15,29 +15,23 @@ export interface RetrieveResultSummary {
 
 export async function retrieveOrgVersion(filePath: string): Promise<string | null> {
     try {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
         const metadataInfo = getMetadataInfo(filePath);
         const metadataType = metadataInfo?.type || '';
         const fileName = metadataInfo?.name || '';
         const fileExt = path.extname(filePath).toLowerCase();
         const fileBaseName = path.basename(filePath, fileExt);
 
-        const tempDir = path.join(workspaceFolder || '', '.sfguard-temp');
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
+        if (!metadataInfo) {
+            return null;
         }
 
-        let tempFilePath: string;
+        if (fileExt === '.xml') {
+            return await retrieveService.retrieveMetadataFileForDiff(filePath, metadataInfo);
+        }
+
+        const tempDir = retrieveService.getBaseTempDir();
+        const tempFilePath = retrieveService.buildTempFilePath(tempDir, filePath, metadataInfo);
         let orgContent = '';
-
-        const safeName = sanitizeFileName(fileName);
-        const safeBaseName = sanitizeFileName(fileBaseName);
-
-        if (metadataType === 'LightningComponentBundle' || metadataType === 'AuraDefinitionBundle') {
-            tempFilePath = path.join(tempDir, `${safeName}_${safeBaseName}_ORG${fileExt}`);
-        } else {
-            tempFilePath = path.join(tempDir, `${safeName}_ORG${fileExt}`);
-        }
 
         if (metadataType === 'LightningComponentBundle') {
             const query = `SELECT Source FROM LightningComponentResource
@@ -50,23 +44,10 @@ export async function retrieveOrgVersion(filePath: string): Promise<string | nul
                 orgContent = (result[0] as { Source?: string }).Source || '';
             }
         } else if (metadataType === 'AuraDefinitionBundle') {
-            let defType = 'COMPONENT';
-            if (fileExt === '.js') {
-                if (fileBaseName.endsWith('Controller')) {
-                    defType = 'CONTROLLER';
-                } else if (fileBaseName.endsWith('Helper')) {
-                    defType = 'HELPER';
-                } else if (fileBaseName.endsWith('Renderer')) {
-                    defType = 'RENDERER';
-                }
-            } else if (fileExt === '.css') {
-                defType = 'STYLE';
-            } else if (fileExt === '.design') {
-                defType = 'DESIGN';
-            } else if (fileExt === '.svg') {
-                defType = 'SVG';
-            } else if (fileExt === '.auradoc') {
-                defType = 'DOCUMENTATION';
+            const defType = retrieveService.getAuraDefType(filePath);
+            if (!defType) {
+                sfGuardOutput.warn(`Could not determine Aura DefType for ${filePath}.`);
+                return null;
             }
 
             const query = `SELECT Source FROM AuraDefinition
@@ -183,6 +164,130 @@ export class RetrieveService {
         };
     }
 
+    public async retrieveMetadataFileForDiff(filePath: string, metadataInfo: MetadataInfo): Promise<string | null> {
+        let tempRetrieveDir: string | null = null;
+
+        try {
+            const projectDirectory = this.findProjectRoot(filePath);
+            if (!projectDirectory) {
+                sfGuardOutput.warn(`Could not find project root while retrieving metadata XML for diff: ${filePath}`);
+                return null;
+            }
+
+            const connection = await salesforceService.getConnection();
+            if (!connection) {
+                sfGuardOutput.warn(`Could not connect to Salesforce while retrieving metadata XML for diff: ${filePath}`);
+                return null;
+            }
+
+            const tempDir = this.getBaseTempDir();
+            tempRetrieveDir = fs.mkdtempSync(path.join(tempDir, 'retrieve-'));
+
+            const retrievePath = this.getRetrievePath(filePath, metadataInfo.type);
+            const componentSet = ComponentSet.fromSource([retrievePath]);
+            componentSet.projectDirectory = projectDirectory;
+
+            const retrieve = await componentSet.retrieve({
+                usernameOrConnection: connection,
+                format: 'metadata',
+                output: tempRetrieveDir,
+                unzip: true,
+                zipFileName: 'metadata.zip'
+            });
+
+            const result = await retrieve.pollStatus();
+            if (!result.response.success) {
+                const details = this.collectFailureDetails(result.response.messages);
+                sfGuardOutput.error(`Metadata diff retrieve failed for ${filePath}.`);
+                for (const detail of details) {
+                    sfGuardOutput.error(`  ${detail}`);
+                }
+                return null;
+            }
+
+            const targetFileName = path.basename(filePath);
+            const retrievedFilePath = this.findFileRecursively(tempRetrieveDir, targetFileName);
+
+            if (!retrievedFilePath) {
+                sfGuardOutput.warn(`Metadata diff retrieve succeeded but ${targetFileName} was not found in temp output.`);
+                return null;
+            }
+
+            const flattenedTempFilePath = this.buildTempFilePath(this.getBaseTempDir(), filePath, metadataInfo);
+            fs.copyFileSync(retrievedFilePath, flattenedTempFilePath);
+            return flattenedTempFilePath;
+        } catch (error) {
+            const errorText = error instanceof Error ? error.message : String(error);
+            sfGuardOutput.error(`Failed to retrieve metadata XML for diff on ${filePath}. ${errorText}`);
+            return null;
+        } finally {
+            if (tempRetrieveDir && fs.existsSync(tempRetrieveDir)) {
+                this.tryCleanupTempDir(tempRetrieveDir);
+            }
+        }
+    }
+
+    public getBaseTempDir(): string {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+        const tempDir = path.join(workspaceFolder || '', '.sfguard-temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        return tempDir;
+    }
+
+    public buildTempFilePath(tempDir: string, filePath: string, metadataInfo: MetadataInfo): string {
+        const fileExt = path.extname(filePath).toLowerCase();
+        const fileBaseName = path.basename(filePath, fileExt);
+        const safeName = sanitizeFileName(metadataInfo.name);
+        const safeBaseName = sanitizeFileName(fileBaseName);
+
+        if (metadataInfo.type === 'LightningComponentBundle' || metadataInfo.type === 'AuraDefinitionBundle') {
+            return path.join(tempDir, `${safeName}_${safeBaseName}_ORG${fileExt}`);
+        }
+
+        return path.join(tempDir, `${safeName}_ORG${fileExt}`);
+    }
+
+    public getAuraDefType(filePath: string): string | null {
+        const fileExt = path.extname(filePath).toLowerCase();
+        const fileBaseName = path.basename(filePath, fileExt);
+
+        switch (fileExt) {
+            case '.cmp':
+                return 'COMPONENT';
+            case '.app':
+                return 'APPLICATION';
+            case '.evt':
+                return 'EVENT';
+            case '.intf':
+                return 'INTERFACE';
+            case '.auradoc':
+                return 'DOCUMENTATION';
+            case '.design':
+                return 'DESIGN';
+            case '.svg':
+                return 'SVG';
+            case '.tokens':
+                return 'TOKENS';
+            case '.css':
+                return 'STYLE';
+            case '.js':
+                if (fileBaseName.endsWith('Controller')) {
+                    return 'CONTROLLER';
+                }
+                if (fileBaseName.endsWith('Helper')) {
+                    return 'HELPER';
+                }
+                if (fileBaseName.endsWith('Renderer')) {
+                    return 'RENDERER';
+                }
+                return null;
+            default:
+                return null;
+        }
+    }
+
     private getRetrievePath(filePath: string, metadataType: string): string {
         if (metadataType !== 'LightningComponentBundle' && metadataType !== 'AuraDefinitionBundle') {
             return filePath;
@@ -214,6 +319,34 @@ export class RetrieveService {
             }
 
             currentPath = parentPath;
+        }
+    }
+
+    private findFileRecursively(rootDir: string, targetFileName: string): string | null {
+        for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+            const fullPath = path.join(rootDir, entry.name);
+            if (entry.isDirectory()) {
+                const found = this.findFileRecursively(fullPath, targetFileName);
+                if (found) {
+                    return found;
+                }
+                continue;
+            }
+
+            if (entry.isFile() && entry.name === targetFileName) {
+                return fullPath;
+            }
+        }
+
+        return null;
+    }
+
+    private tryCleanupTempDir(tempDir: string): void {
+        try {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch (error) {
+            const errorText = error instanceof Error ? error.message : String(error);
+            sfGuardOutput.warn(`Temporary diff retrieve folder could not be cleaned up immediately: ${tempDir}. ${errorText}`);
         }
     }
 

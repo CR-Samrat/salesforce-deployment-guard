@@ -56,11 +56,11 @@ export class SafeDeployCommand {
 
         if (conflictInfo?.hasConflict) {
             sfGuardOutput.warn(
-                `Conflict detected for ${fileName}. Type: ${conflictInfo.conflictType}. Modified by: ${conflictInfo.modifiedBy}.`
+                `Conflict detected for ${metadataInfo.name}. Type: ${conflictInfo.conflictType}. Modified by: ${conflictInfo.modifiedBy}.`
             );
 
             const conflictMessage = `WARNING: Conflict Detected! ${conflictInfo.reason}\n\n` +
-                `File: "${fileName}"\n` +
+                `File: "${metadataInfo.name}"\n` +
                 `Last modified by: ${conflictInfo.modifiedBy}\n` +
                 `Modified on: ${conflictInfo.modifiedDate}\n\n` +
                 'Please retrieve the file first to sync with Salesforce Guard.';
@@ -68,7 +68,7 @@ export class SafeDeployCommand {
             const overwriteMessage = 'WARNING: Your local file is outdated!\n\n' +
                 `${conflictInfo.reason}\n` +
                 'Deploying now may overwrite changes in the org.\n\n' +
-                `File: "${fileName}"\n` +
+                `File: "${metadataInfo.name}"\n` +
                 `Modified on: ${conflictInfo.modifiedDate}\n\n` +
                 'Please review your changes before proceeding.';
 

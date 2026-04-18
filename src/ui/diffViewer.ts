@@ -58,6 +58,7 @@ export async function showLWCDiffAndResolve(
         for (const file of relevantFiles) {
             const localPath = path.join(bundlePath, file);
             const orgPath = await retrieveOrgVersion(localPath);
+            console.log('Retrieved org version for', file, 'Org Path:', orgPath);
             
             if (orgPath) {
                 // Check if files are different
@@ -167,7 +168,6 @@ export async function showLWCDiffAndResolve(
         vscode.window.showErrorMessage(`Failed to show LWC difference view. Reason: ${error}`);
         return false;
     } finally {
-        // Always cleanup, even if error
         for (const tempFile of tempFilesToCleanup) {
             cleanupTempFile(tempFile);
         }
@@ -193,11 +193,6 @@ export async function showDiffAndResolve(
                 { localFilePath, componentName: metadataInfo.name, componentType: metadataInfo.type, currentUser },
                 context
             );
-        }
-
-        // Check if current file is an xml file
-        if (path.extname(localFilePath) === '.xml') {
-            localFilePath = localFilePath.replace('-meta.xml', '');
         }
 
         // Get org version of the file
@@ -237,7 +232,7 @@ export async function showDiffAndResolve(
 
             // Update retrieve map
             const retrieveMap = getRetrieveMap(context);
-            const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
+            const fileBaseName = metadataInfo.name;
             retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 
@@ -255,7 +250,7 @@ export async function showDiffAndResolve(
 
             // Update retrieve map since they're manually resolving
             const retrieveMap = getRetrieveMap(context);
-            const fileBaseName = path.basename(localFilePath, path.extname(localFilePath));
+            const fileBaseName = metadataInfo.name;
             retrieveMap.set(`${currentUser}:${fileBaseName}`, new Date());
             saveRetrieveMap(context, retrieveMap);
 
