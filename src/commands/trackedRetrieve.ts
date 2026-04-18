@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getMetadataInfo } from '../utils/metadataUtils';
+import { fetchRetrieveableFiles, getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { retrieveService, salesforceService, sfGuardOutput } from '../services';
 
@@ -51,6 +51,14 @@ export class TrackedRetrieveCommand {
             const key = `${currentUser?.username}:${metadataInfo.name}`;
             retrieveMap.set(key, new Date());
             saveRetrieveMap(this.context, retrieveMap);
+
+            const retrievedFiles = fetchRetrieveableFiles(metadataInfo, filePath);
+            sfGuardOutput.section(`Retrieve Summary - ${metadataInfo.name}`);
+            sfGuardOutput.info(`Component type: ${metadataInfo.type}`);
+            sfGuardOutput.info('Files retrieved:');
+            for (const retrievedFile of retrievedFiles) {
+                sfGuardOutput.info(`  - ${retrievedFile}`);
+            }
 
             vscode.window.showInformationMessage(`Retrieved successfully: ${fileName}`);
             sfGuardOutput.info(`Retrieve completed successfully for ${fileName}.`);

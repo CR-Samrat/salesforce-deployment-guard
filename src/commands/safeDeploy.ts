@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getMetadataInfo } from '../utils/metadataUtils';
+import { fetchRetrieveableFiles, getMetadataInfo } from '../utils/metadataUtils';
 import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
@@ -116,8 +116,29 @@ export class SafeDeployCommand {
             const deployResult = await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: `Deploying ${fileName} to Salesforce...`,
-                cancellable: false
-            }, async () => deployService.deploy(filePath));
+                cancellable: true
+            }, async (_progress, token) => {
+                let cancelRequested = false;
+
+                token.onCancellationRequested(() => {
+                    cancelRequested = true;
+                    sfGuardOutput.warn(`Deployment cancel requested for ${metadataInfo.name}.`);
+                });
+
+                const result = await deployService.deploy(filePath, {
+                    onCancelRequested: (cancel) => {
+                        token.onCancellationRequested(() => {
+                            void cancel();
+                        });
+                    }
+                });
+
+                if (cancelRequested && !result.success) {
+                    throw new Error('Deployment was cancelled.');
+                }
+
+                return result;
+            });
 
             if (!deployResult.success) {
                 const details = deployResult.details?.slice(0, 5).join('\n');
@@ -149,6 +170,14 @@ export class SafeDeployCommand {
                 } else {
                     sfGuardOutput.info(`Backup skipped because it is disabled for ${metadataInfo.name} (${currentAlias}).`);
                 }
+            }
+
+            const deployedFiles = fetchRetrieveableFiles(metadataInfo, filePath);
+            sfGuardOutput.section(`Deploy Summary - ${metadataInfo.name}`);
+            sfGuardOutput.info(`Component type: ${metadataInfo.type}`);
+            sfGuardOutput.info('Files deployed:');
+            for (const deployedFile of deployedFiles) {
+                sfGuardOutput.info(`  - ${deployedFile}`);
             }
 
             vscode.window.showInformationMessage(`Deployed successfully: ${metadataInfo.name}`);

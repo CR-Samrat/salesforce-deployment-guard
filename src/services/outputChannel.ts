@@ -33,6 +33,12 @@ class SfGuardOutputChannel {
         this.channel?.show(preserveFocus);
     }
 
+    public section(title: string): void {
+        this.initialize();
+        this.channel?.appendLine('');
+        this.channel?.appendLine(`========== ${title} ==========`);
+    }
+
     private append(level: LogLevel, message: string): void {
         this.initialize();
         this.channel?.appendLine(`${new Date().toLocaleString()} [${level}] ${message}`);

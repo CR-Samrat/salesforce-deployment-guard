@@ -11,8 +11,12 @@ export interface DeployResultSummary {
     details?: string[];
 }
 
+export interface DeployExecutionOptions {
+    onCancelRequested?: (cancel: () => Promise<void>) => void;
+}
+
 export class DeployService {
-    public async deploy(filePath: string): Promise<DeployResultSummary> {
+    public async deploy(filePath: string, options?: DeployExecutionOptions): Promise<DeployResultSummary> {
         const metadataInfo = getMetadataInfo(filePath);
         if (!metadataInfo) {
             return {
@@ -49,6 +53,8 @@ export class DeployService {
                 rollbackOnError: true
             }
         });
+
+        options?.onCancelRequested?.(() => deploy.cancel());
 
         const result = await deploy.pollStatus();
         if (result.response.success) {
