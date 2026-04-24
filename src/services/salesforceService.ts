@@ -122,6 +122,22 @@ class SalesforceService {
         }
     }
 
+    public async getCurrentOrgId(): Promise<string | null> {
+        try {
+            const connection = await this.getConnection();
+            if (!connection) {
+                return null;
+            }
+
+            const orgId = connection.getAuthInfoFields().orgId;
+            return orgId || null;
+        } catch (error) {
+            const errorText = error instanceof Error ? error.message : String(error);
+            sfGuardOutput.error(`Failed to determine current Salesforce org id. ${errorText}`);
+            return null;
+        }
+    }
+
     public clearCache(reason?: string): void {
         if (reason) {
             console.log(`Clearing Salesforce connection cache. Reason: ${reason}.`);

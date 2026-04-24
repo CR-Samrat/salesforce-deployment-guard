@@ -1,11 +1,22 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { salesforceService } from './salesforceService';
 import { getMetadataInfo } from '../utils/metadataUtils';
 import { sanitizeSOQL } from '../utils/sanitization';
-import { getRetrieveMap } from '../storage/retrieveMapStorage';
+import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { ConflictInfo } from '../types/conflict';
 import { sfGuardOutput } from './outputChannel';
+
+interface FileResponseHistory {
+    timestamp?: string;
+    operation?: string;
+    components?: Array<{
+        metadataType?: string;
+        fullName?: string;
+        lastModifiedDate?: string;
+    }>;
+}
 
 export class ConflictService {
     constructor(private context: vscode.ExtensionContext) {}
@@ -75,7 +86,18 @@ export class ConflictService {
             const orgLastModified = new Date(orgRecord.LastModifiedDate);
 
             const retrieveMap = getRetrieveMap(this.context);
-            const lastRetrieved = retrieveMap.get(`${currentUsername}:${name}`);
+            const retrieveMapKey = `${currentUsername}:${name}`;
+            const trackedSyncTime = retrieveMap.get(retrieveMapKey);
+            const externalSyncTime = await this.getLatestSalesforceSyncTime(filePath, type, name);
+            const lastRetrieved = this.getLatestDate(trackedSyncTime, externalSyncTime);
+
+            if (lastRetrieved && (!trackedSyncTime || lastRetrieved > trackedSyncTime)) {
+                retrieveMap.set(retrieveMapKey, lastRetrieved);
+                saveRetrieveMap(this.context, retrieveMap);
+                sfGuardOutput.info(
+                    `Refreshed SF Guard sync baseline for ${name} from Salesforce local history: ${lastRetrieved.toLocaleString()}.`
+                );
+            }
 
             const isCurrentUser = modifiedByUsername.toLowerCase() === currentUsername.toLowerCase() ||
                 modifiedByName.toLowerCase().includes(currentUsername.toLowerCase()) ||
@@ -119,6 +141,138 @@ export class ConflictService {
             sfGuardOutput.error(`Error checking conflicts for ${filePath}. ${errorText}`);
             vscode.window.showErrorMessage(`Error checking conflicts: ${errorText}`);
             return { hasConflict: false };
+        }
+    }
+
+    private async getLatestSalesforceSyncTime(
+        filePath: string,
+        metadataType: string,
+        metadataName: string
+    ): Promise<Date | null> {
+        const projectRoot = this.findProjectRoot(filePath);
+        if (!projectRoot) {
+            return null;
+        }
+
+        const orgId = await salesforceService.getCurrentOrgId();
+        if (!orgId) {
+            return null;
+        }
+
+        const fileResponsesDir = path.join(projectRoot, '.sfdx', 'fileResponses', orgId);
+        if (!fs.existsSync(fileResponsesDir)) {
+            return null;
+        }
+
+        let latestSyncTime: Date | null = null;
+        const historyFiles = fs.readdirSync(fileResponsesDir)
+            .filter((entry) => entry.endsWith('.json') && (entry.startsWith('retrieve-') || entry.startsWith('deploy-')));
+
+        for (const historyFile of historyFiles) {
+            const historyPath = path.join(fileResponsesDir, historyFile);
+
+            try {
+                const history = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as FileResponseHistory;
+                const components = Array.isArray(history.components) ? history.components : [];
+                const matchesComponent = components.some((component) =>
+                    //component.metadataType === metadataType && component.fullName === metadataName
+                    this.matchesHistoryComponent(component, metadataType, metadataName)
+                );
+
+                if (!matchesComponent) {
+                    continue;
+                }
+
+                const syncTimestamp = this.parseSyncTimestamp(history, components);
+                latestSyncTime = this.getLatestDate(latestSyncTime, syncTimestamp);
+            } catch (error) {
+                const errorText = error instanceof Error ? error.message : String(error);
+                sfGuardOutput.warn(`Could not read Salesforce file response history ${historyFile}. ${errorText}`);
+            }
+        }
+
+        if (latestSyncTime) {
+            sfGuardOutput.info(
+                `Salesforce local history found for ${metadataType} ${metadataName}: ${latestSyncTime.toLocaleString()}.`
+            );
+        }
+
+        return latestSyncTime;
+    }
+
+    private parseSyncTimestamp(
+        history: FileResponseHistory,
+        components: Array<{ metadataType?: string; fullName?: string; lastModifiedDate?: string }>
+    ): Date | null {
+        const historyTimestamp = history.timestamp ? new Date(history.timestamp) : null;
+        const validHistoryTimestamp = historyTimestamp && !Number.isNaN(historyTimestamp.getTime())
+            ? historyTimestamp
+            : null;
+
+        let latestComponentTimestamp: Date | null = null;
+        for (const component of components) {
+            if (!component.lastModifiedDate) {
+                continue;
+            }
+
+            const componentTimestamp = new Date(component.lastModifiedDate);
+            if (Number.isNaN(componentTimestamp.getTime())) {
+                continue;
+            }
+
+            latestComponentTimestamp = this.getLatestDate(latestComponentTimestamp, componentTimestamp);
+        }
+
+        return this.getLatestDate(validHistoryTimestamp, latestComponentTimestamp);
+    }
+
+    private matchesHistoryComponent(
+        component: { metadataType?: string; fullName?: string },
+        metadataType: string,
+        metadataName: string
+    ): boolean {
+        if (component.metadataType !== metadataType || !component.fullName) {
+            return false;
+        }
+
+        if (component.fullName === metadataName) {
+            return true;
+        }
+
+        if (metadataType === 'LightningComponentBundle' || metadataType === 'AuraDefinitionBundle') {
+            return component.fullName.startsWith(`${metadataName}/`);
+        }
+
+        return false;
+    }
+
+    private getLatestDate(first: Date | null | undefined, second: Date | null | undefined): Date | null {
+        if (!first) {
+            return second || null;
+        }
+
+        if (!second) {
+            return first;
+        }
+
+        return first > second ? first : second;
+    }
+
+    private findProjectRoot(filePath: string): string | null {
+        let currentPath = path.dirname(filePath);
+
+        while (true) {
+            const projectFile = path.join(currentPath, 'sfdx-project.json');
+            if (fs.existsSync(projectFile)) {
+                return currentPath;
+            }
+
+            const parentPath = path.dirname(currentPath);
+            if (parentPath === currentPath) {
+                return null;
+            }
+
+            currentPath = parentPath;
         }
     }
 }
