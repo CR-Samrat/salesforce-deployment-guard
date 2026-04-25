@@ -19,6 +19,8 @@ interface FileResponseHistory {
 }
 
 export class ConflictService {
+    private static readonly MAX_FILE_RESPONSE_FILES_TO_SCAN = 50;
+
     constructor(private context: vscode.ExtensionContext) {}
 
     async checkForConflicts(filePath: string): Promise<ConflictInfo> {
@@ -88,7 +90,7 @@ export class ConflictService {
             const retrieveMap = getRetrieveMap(this.context);
             const retrieveMapKey = `${currentUsername}:${name}`;
             const trackedSyncTime = retrieveMap.get(retrieveMapKey);
-            const externalSyncTime = await this.getLatestSalesforceSyncTime(filePath, type, name);
+            const externalSyncTime = await this.getLatestSalesforceSyncTime(filePath, type, name, trackedSyncTime);
             const lastRetrieved = this.getLatestDate(trackedSyncTime, externalSyncTime);
 
             if (lastRetrieved && (!trackedSyncTime || lastRetrieved > trackedSyncTime)) {
@@ -147,7 +149,8 @@ export class ConflictService {
     private async getLatestSalesforceSyncTime(
         filePath: string,
         metadataType: string,
-        metadataName: string
+        metadataName: string,
+        trackedSyncTime?: Date | null
     ): Promise<Date | null> {
         const projectRoot = this.findProjectRoot(filePath);
         if (!projectRoot) {
@@ -164,30 +167,55 @@ export class ConflictService {
             return null;
         }
 
+        const baseline = trackedSyncTime || null;
         let latestSyncTime: Date | null = null;
-        const historyFiles = fs.readdirSync(fileResponsesDir)
-            .filter((entry) => entry.endsWith('.json') && (entry.startsWith('retrieve-') || entry.startsWith('deploy-')));
 
-        for (const historyFile of historyFiles) {
-            const historyPath = path.join(fileResponsesDir, historyFile);
+        const historyFiles = fs.readdirSync(fileResponsesDir, { withFileTypes: true })
+            .filter((entry) =>
+                entry.isFile() &&
+                entry.name.endsWith('.json') &&
+                (entry.name.startsWith('retrieve-') || entry.name.startsWith('deploy-'))
+            )
+            .map((entry) => {
+                const historyPath = path.join(fileResponsesDir, entry.name);
+                return {
+                    historyFile: entry.name,
+                    historyPath,
+                    modifiedTime: fs.statSync(historyPath).mtime
+                };
+            })
+            .sort((first, second) => second.modifiedTime.getTime() - first.modifiedTime.getTime());
+
+        let scannedFiles = 0;
+        for (const historyEntry of historyFiles) {
+            if (scannedFiles >= ConflictService.MAX_FILE_RESPONSE_FILES_TO_SCAN) {
+                break;
+            }
+
+            if (baseline && historyEntry.modifiedTime <= baseline) {
+                break;
+            }
+
+            scannedFiles += 1;
 
             try {
-                const history = JSON.parse(fs.readFileSync(historyPath, 'utf8')) as FileResponseHistory;
+                const history = JSON.parse(fs.readFileSync(historyEntry.historyPath, 'utf8')) as FileResponseHistory;
                 const components = Array.isArray(history.components) ? history.components : [];
-                const matchesComponent = components.some((component) =>
-                    //component.metadataType === metadataType && component.fullName === metadataName
+                const matchingComponents = components.filter((component) =>
                     this.matchesHistoryComponent(component, metadataType, metadataName)
                 );
 
-                if (!matchesComponent) {
+                if (matchingComponents.length === 0) {
                     continue;
                 }
 
-                const syncTimestamp = this.parseSyncTimestamp(history, components);
-                latestSyncTime = this.getLatestDate(latestSyncTime, syncTimestamp);
+                const syncTimestamp = this.parseSyncTimestamp(history, matchingComponents);
+                if (syncTimestamp && (!baseline || syncTimestamp > baseline)) {
+                    latestSyncTime = this.getLatestDate(latestSyncTime, syncTimestamp);
+                }
             } catch (error) {
                 const errorText = error instanceof Error ? error.message : String(error);
-                sfGuardOutput.warn(`Could not read Salesforce file response history ${historyFile}. ${errorText}`);
+                sfGuardOutput.warn(`Could not read Salesforce file response history ${historyEntry.historyFile}. ${errorText}`);
             }
         }
 
