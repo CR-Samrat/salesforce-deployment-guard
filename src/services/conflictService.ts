@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { salesforceService } from './salesforceService';
 import { getMetadataInfo } from '../utils/metadataUtils';
 import { sanitizeSOQL } from '../utils/sanitization';
-import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { buildLegacyRetrieveMapKey, buildRetrieveMapKey, getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { ConflictInfo } from '../types/conflict';
 import { sfGuardOutput } from './outputChannel';
 
@@ -39,6 +39,11 @@ export class ConflictService {
             }
 
             const { username: currentUsername } = currentUser;
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (!currentOrgId) {
+                sfGuardOutput.warn('Conflict check skipped because current Salesforce org id could not be determined.');
+                return { hasConflict: false };
+            }
 
             const metadataInfo = getMetadataInfo(filePath);
             if (!metadataInfo) {
@@ -88,13 +93,15 @@ export class ConflictService {
             const orgLastModified = new Date(orgRecord.LastModifiedDate);
 
             const retrieveMap = getRetrieveMap(this.context);
-            const retrieveMapKey = `${currentUsername}:${name}`;
-            const trackedSyncTime = retrieveMap.get(retrieveMapKey);
+            const retrieveMapKey = buildRetrieveMapKey(currentOrgId, type, name);
+            const legacyRetrieveMapKey = buildLegacyRetrieveMapKey(currentUsername, name);
+            const trackedSyncTime = retrieveMap.get(retrieveMapKey) || retrieveMap.get(legacyRetrieveMapKey);
             const externalSyncTime = await this.getLatestSalesforceSyncTime(filePath, type, name, trackedSyncTime);
             const lastRetrieved = this.getLatestDate(trackedSyncTime, externalSyncTime);
 
             if (lastRetrieved && (!trackedSyncTime || lastRetrieved > trackedSyncTime)) {
                 retrieveMap.set(retrieveMapKey, lastRetrieved);
+                retrieveMap.delete(legacyRetrieveMapKey);
                 saveRetrieveMap(this.context, retrieveMap);
                 sfGuardOutput.info(
                     `Refreshed SF Guard sync baseline for ${name} from Salesforce local history: ${lastRetrieved.toLocaleString()}.`

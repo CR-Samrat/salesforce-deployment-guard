@@ -7,6 +7,7 @@ import { BackupMetadataStorage } from '../storage/backupMetadata';
 
 interface quickPickMetadata{
     alias: string;
+    orgId: string;
     metadataInfo: any;
     folderName: string;
     backupDir: string;
@@ -35,7 +36,8 @@ export class CompareBackupCommand {
             }
 
             const currentAlias = await salesforceService.getCurrentAlias();
-            if (!currentAlias) {
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (!currentAlias || !currentOrgId) {
                 vscode.window.showErrorMessage('No active Salesforce org');
                 return;
             }
@@ -61,7 +63,7 @@ export class CompareBackupCommand {
             }
 
             // Show backup picker with rename and lock options
-            await this.showBackupPicker(filePath, backupDir, currentAlias, metadataInfo);
+            await this.showBackupPicker(filePath, backupDir, currentAlias, currentOrgId, metadataInfo);
 
         } catch (error) {
             console.error('Error comparing backup:', error);
@@ -73,13 +75,15 @@ export class CompareBackupCommand {
         filePath: string,
         backupDir: string,
         alias: string,
+        orgId: string,
         metadataInfo: any
     ): Promise<void> {
         // Get all backups with metadata
         const backups = this.metadataStorage.getSortedBackups(
-            alias,
+            orgId,
             metadataInfo.type,
-            metadataInfo.name
+            metadataInfo.name,
+            alias
         );
 
         if (backups.length === 0) {
@@ -133,6 +137,7 @@ export class CompareBackupCommand {
             const item = event.item as any;
             const quickPickInfo: quickPickMetadata = {
                 alias: alias,
+                orgId: orgId,
                 metadataInfo: metadataInfo,
                 folderName: item.folderName,
                 backupDir: backupDir,
@@ -162,7 +167,7 @@ export class CompareBackupCommand {
         quickPick.onDidAccept(async () => {
             const selected = quickPick.selectedItems[0] as any;
             if (selected) {
-                await this.handleCompare({alias, metadataInfo, folderName: selected.folderName, backupDir, filePath});
+                await this.handleCompare({alias, orgId, metadataInfo, folderName: selected.folderName, backupDir, filePath});
                 quickPick.hide();
             }
         });
@@ -177,9 +182,10 @@ export class CompareBackupCommand {
     ): Promise<void> {
         // Get current name
         const metadata = this.metadataStorage.getBackupMetadata(
-            quickPickInfo.alias,
+            quickPickInfo.orgId,
             quickPickInfo.metadataInfo.type,
-            quickPickInfo.metadataInfo.name
+            quickPickInfo.metadataInfo.name,
+            quickPickInfo.alias
         );
         const currentName = metadata[quickPickInfo.folderName]?.displayName || quickPickInfo.folderName;
 
@@ -204,11 +210,12 @@ export class CompareBackupCommand {
         if (newName) {
             // Save new name
             const success = this.metadataStorage.renameBackup(
-                quickPickInfo.alias,
+                quickPickInfo.orgId,
                 quickPickInfo.metadataInfo.type,
                 quickPickInfo.metadataInfo.name,
                 quickPickInfo.folderName,
-                newName
+                newName,
+                quickPickInfo.alias
             );
 
             if (success) {
@@ -221,6 +228,7 @@ export class CompareBackupCommand {
                     quickPickInfo.filePath,
                     quickPickInfo.backupDir,
                     quickPickInfo.alias,
+                    quickPickInfo.orgId,
                     quickPickInfo.metadataInfo
                 );
             } else {
@@ -234,10 +242,11 @@ export class CompareBackupCommand {
         quickPick: vscode.QuickPick<vscode.QuickPickItem>
     ): Promise<void> {
         const newLockStatus = this.metadataStorage.toggleLock(
-            quickPickInfo.alias,
+            quickPickInfo.orgId,
             quickPickInfo.metadataInfo.type,
             quickPickInfo.metadataInfo.name,
-            quickPickInfo.folderName
+            quickPickInfo.folderName,
+            quickPickInfo.alias
         );
 
         const statusText = newLockStatus ? 'locked' : 'unlocked';
@@ -254,6 +263,7 @@ export class CompareBackupCommand {
             quickPickInfo.filePath,
             quickPickInfo.backupDir,
             quickPickInfo.alias,
+            quickPickInfo.orgId,
             quickPickInfo.metadataInfo
         );
     }
@@ -305,7 +315,13 @@ export class CompareBackupCommand {
 
             if (!fs.existsSync(backupFolderPath)) {
                 vscode.window.showErrorMessage('Backup file not found. It may have already been deleted.');
-                this.metadataStorage.deleteBackupMetadata(currentAlias, metadataType, componentName, quickPickInfo.folderName);
+                this.metadataStorage.deleteBackupMetadata(
+                    quickPickInfo.orgId,
+                    metadataType,
+                    componentName,
+                    quickPickInfo.folderName,
+                    currentAlias
+                );
 
                 vscode.window.showInformationMessage('✅ Backup Deleted successfully');
                 return;
@@ -313,7 +329,13 @@ export class CompareBackupCommand {
 
         
             this.deleteFolder(backupFolderPath);
-            this.metadataStorage.deleteBackupMetadata(currentAlias, metadataType, componentName, quickPickInfo.folderName);
+            this.metadataStorage.deleteBackupMetadata(
+                quickPickInfo.orgId,
+                metadataType,
+                componentName,
+                quickPickInfo.folderName,
+                currentAlias
+            );
             vscode.window.showInformationMessage('✅ Backup Deleted successfully');
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to delete backup: ${error}`);

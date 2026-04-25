@@ -2,6 +2,29 @@ import * as vscode from 'vscode';
 
 const RETRIEVE_MAP_KEY = 'sfGuard.retrieveTimestamps';
 
+export function buildRetrieveMapKey(orgId: string, metadataType: string, componentName: string): string {
+    return `${orgId}:${metadataType}:${componentName}`;
+}
+
+export function buildLegacyRetrieveMapKey(username: string, componentName: string): string {
+    return `${username}:${componentName}`;
+}
+
+export function parseRetrieveMapKey(key: string): { orgId: string; metadataType: string; componentName: string } | null {
+    const parts = key.split(':');
+    if (parts.length < 3) {
+        return null;
+    }
+
+    const [orgId, metadataType, ...componentNameParts] = parts;
+    const componentName = componentNameParts.join(':');
+    if (!orgId || !metadataType || !componentName) {
+        return null;
+    }
+
+    return { orgId, metadataType, componentName };
+}
+
 export function getRetrieveMap(context: vscode.ExtensionContext): Map<string, Date> {
     const stored = context.workspaceState.get<Record<string, string>>(RETRIEVE_MAP_KEY, {});
     const map = new Map<string, Date>();

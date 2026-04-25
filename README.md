@@ -3,7 +3,7 @@
 > **Never lose code to accidental overwrites again.** Automatic conflict detection, backups, and recovery for Salesforce developers.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-0.8.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.9.0-green)]()
 [![Rating](https://img.shields.io/badge/rating-★★★★★-yellow)]()
 
 ---
@@ -54,6 +54,7 @@ SF Guard is your safety net for Salesforce development:
 - Shows who modified the file and when
 - Prevents accidental overwrites
 - Works across all team members
+- Better recognizes recent deploy/retrieve activity performed through Salesforce local project history for tracked components
 
 ### 📁 Automatic Backups
 - Backs up files automatically on deploy
@@ -154,6 +155,8 @@ Right-click file → **SF Guard: Compare with Backup**. Select from up to 5 prev
 ![GIF: sync-status.gif](./images/sync-status.gif)
 
 Command Palette → **SF Guard: View Sync Status**. See all tracked files, their last retrieve time, backup status, and manage them in one place.
+
+Tracked sync state is now org-aware and metadata-type-aware, which improves behavior when the same component name exists across different orgs or metadata types.
 
 ---
 
@@ -396,7 +399,7 @@ sf org login web -a Dev
 
 ## 🗺️ Roadmap
 
-### v0.9.0 (Planned)
+### v0.10.0 (Planned)
 - Batch deployment with conflict check
 - Deployment history dashboard
 - Custom backup retention rules

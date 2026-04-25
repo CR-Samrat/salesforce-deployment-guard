@@ -29,13 +29,19 @@ export class ToggleBackupCommand {
 
             // Get current user
             const currentAlias = await salesforceService.getCurrentAlias();
-            if (!currentAlias) {
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (!currentAlias || !currentOrgId) {
                 vscode.window.showErrorMessage('No active Salesforce org');
                 return;
             }
 
             // Toggle backup
-            const newState = this.backupPrefs.toggleBackup(currentAlias, metadataInfo.name);
+            const newState = this.backupPrefs.toggleBackup(
+                currentOrgId,
+                metadataInfo.type,
+                metadataInfo.name,
+                currentAlias
+            );
 
             // Show confirmation
             vscode.window.showInformationMessage(

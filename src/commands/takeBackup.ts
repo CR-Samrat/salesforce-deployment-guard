@@ -22,14 +22,16 @@ export class TakeBackupCommand {
 
         try {
             const currentAlias = await salesforceService.getCurrentAlias() || 'unknown_alias';
+            const currentOrgId = await salesforceService.getCurrentOrgId() || 'unknown_org';
             
-            if (currentAlias !== 'unknown_alias' && metadataInfo) {
+            if (currentAlias !== 'unknown_alias' && currentOrgId !== 'unknown_org' && metadataInfo) {
                 const backupService = getBackupService();
                 
                 const backupCreated = backupService.backupDeployedFile(
                     filePath,
                     metadataInfo,
-                    currentAlias
+                    currentAlias,
+                    currentOrgId
                 );
                 
                 if (backupCreated) {

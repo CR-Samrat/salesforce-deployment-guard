@@ -5,37 +5,70 @@ export class BackupPreferences {
     
     constructor(private context: vscode.ExtensionContext) {}
 
-    isBackupEnabled(alias: string, fileName: string): boolean {
+    isBackupEnabled(orgId: string, metadataType: string, componentName: string, legacyAlias?: string): boolean {
         const enabledFiles = this.getEnabledFiles();
-        const key = `${alias}:${fileName}`;
-        return enabledFiles[key] === true;
+        const key = this.getKey(orgId, metadataType, componentName);
+
+        if (enabledFiles[key] === true) {
+            return true;
+        }
+
+        if (legacyAlias) {
+            const legacyKey = this.getLegacyKey(legacyAlias, componentName);
+            if (enabledFiles[legacyKey] === true) {
+                enabledFiles[key] = true;
+                delete enabledFiles[legacyKey];
+                this.saveEnabledFiles(enabledFiles);
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    enableBackup(alias: string, fileName: string): void {
+    enableBackup(orgId: string, metadataType: string, componentName: string, legacyAlias?: string): void {
         const enabledFiles = this.getEnabledFiles();
-        const key = `${alias}:${fileName}`;
+        const key = this.getKey(orgId, metadataType, componentName);
         enabledFiles[key] = true;
+
+        if (legacyAlias) {
+            delete enabledFiles[this.getLegacyKey(legacyAlias, componentName)];
+        }
+
         this.saveEnabledFiles(enabledFiles);
     }
 
-    disableBackup(alias: string, fileName: string): void {
+    disableBackup(orgId: string, metadataType: string, componentName: string, legacyAlias?: string): void {
         const enabledFiles = this.getEnabledFiles();
-        const key = `${alias}:${fileName}`;
+        const key = this.getKey(orgId, metadataType, componentName);
         enabledFiles[key] = false;
+
+        if (legacyAlias) {
+            delete enabledFiles[this.getLegacyKey(legacyAlias, componentName)];
+        }
+
         this.saveEnabledFiles(enabledFiles);
     }
 
-    toggleBackup(alias: string, fileName: string): boolean {
-        const currentState = this.isBackupEnabled(alias, fileName);
+    toggleBackup(orgId: string, metadataType: string, componentName: string, legacyAlias?: string): boolean {
+        const currentState = this.isBackupEnabled(orgId, metadataType, componentName, legacyAlias);
         const newState = !currentState;
         
         if (newState) {
-            this.enableBackup(alias, fileName);
+            this.enableBackup(orgId, metadataType, componentName, legacyAlias);
         } else {
-            this.disableBackup(alias, fileName);
+            this.disableBackup(orgId, metadataType, componentName, legacyAlias);
         }
         
         return newState;
+    }
+
+    private getKey(orgId: string, metadataType: string, componentName: string): string {
+        return `${orgId}:${metadataType}:${componentName}`;
+    }
+
+    private getLegacyKey(alias: string, componentName: string): string {
+        return `${alias}:${componentName}`;
     }
 
     private getEnabledFiles(): Record<string, boolean> {

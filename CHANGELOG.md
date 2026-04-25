@@ -2,6 +2,18 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [0.9.0] - 2026-04-25
+
+### Added
+- Real unit test and coverage scripts for utility-layer validation
+- Direct `mocha` and `c8` development dependencies for portable local test execution
+
+### Changed
+- Conflict detection now recognizes recent Salesforce Extension Pack deploy/retrieve history for tracked components by reading local `.sfdx/fileResponses` records
+- Sync tracking, backup preferences, and backup metadata stored in workspace state are now scoped by org and metadata type for safer multi-org and same-name component handling
+- Conflict history lookup now scans only the newest relevant Salesforce history files for faster deploy checks
+- Sync Status entries now display more clearly by metadata type and component name
+
 ## [0.8.0] - 2026-04-18
 
 ### Added

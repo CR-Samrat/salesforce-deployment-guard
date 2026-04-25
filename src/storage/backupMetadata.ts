@@ -14,39 +14,66 @@ export class BackupMetadataStorage {
     
     constructor(private context: vscode.ExtensionContext) {}
 
-    getBackupMetadata(alias: string, metadataType: string, componentName: string): Record<string, BackupMetadata> {
+    getBackupMetadata(
+        orgId: string,
+        metadataType: string,
+        componentName: string,
+        legacyAlias?: string
+    ): Record<string, BackupMetadata> {
         const allMetadata = this.getAllMetadata();
-        const key = this.getKey(alias, metadataType, componentName);
-        return allMetadata[key] || {};
+        const key = this.getKey(orgId, metadataType, componentName);
+
+        if (allMetadata[key]) {
+            return allMetadata[key];
+        }
+
+        if (legacyAlias) {
+            const legacyKey = this.getLegacyKey(legacyAlias, metadataType, componentName);
+            if (allMetadata[legacyKey]) {
+                allMetadata[key] = allMetadata[legacyKey];
+                delete allMetadata[legacyKey];
+                this.saveAllMetadata(allMetadata);
+                return allMetadata[key];
+            }
+        }
+
+        return {};
     }
 
     saveBackupMetadata(
-        alias: string,
+        orgId: string,
         metadataType: string,
         componentName: string,
         folderName: string,
-        metadata: BackupMetadata
+        metadata: BackupMetadata,
+        legacyAlias?: string
     ): void {
         const allMetadata = this.getAllMetadata();
-        const key = this.getKey(alias, metadataType, componentName);
+        const key = this.getKey(orgId, metadataType, componentName);
         
         if (!allMetadata[key]) {
             allMetadata[key] = {};
         }
         
         allMetadata[key][folderName] = metadata;
+
+        if (legacyAlias) {
+            delete allMetadata[this.getLegacyKey(legacyAlias, metadataType, componentName)];
+        }
+
         this.saveAllMetadata(allMetadata);
     }
 
     renameBackup(
-        alias: string,
+        orgId: string,
         metadataType: string,
         componentName: string,
         folderName: string,
-        newName: string
+        newName: string,
+        legacyAlias?: string
     ): boolean {
         const allMetadata = this.getAllMetadata();
-        const key = this.getKey(alias, metadataType, componentName);
+        const key = this.getResolvedKey(allMetadata, orgId, metadataType, componentName, legacyAlias);
         
         if (!allMetadata[key] || !allMetadata[key][folderName]) {
             return false;
@@ -60,13 +87,14 @@ export class BackupMetadataStorage {
     }
 
     toggleLock(
-        alias: string,
+        orgId: string,
         metadataType: string,
         componentName: string,
-        folderName: string
+        folderName: string,
+        legacyAlias?: string
     ): boolean {
         const allMetadata = this.getAllMetadata();
-        const key = this.getKey(alias, metadataType, componentName);
+        const key = this.getResolvedKey(allMetadata, orgId, metadataType, componentName, legacyAlias);
         
         if (!allMetadata[key] || !allMetadata[key][folderName]) {
             return false;
@@ -80,23 +108,25 @@ export class BackupMetadataStorage {
     }
 
     isLocked(
-        alias: string,
+        orgId: string,
         metadataType: string,
         componentName: string,
-        folderName: string
+        folderName: string,
+        legacyAlias?: string
     ): boolean {
-        const metadata = this.getBackupMetadata(alias, metadataType, componentName);
+        const metadata = this.getBackupMetadata(orgId, metadataType, componentName, legacyAlias);
         return metadata[folderName]?.isLocked || false;
     }
 
     deleteBackupMetadata(
-        alias: string,
+        orgId: string,
         metadataType: string,
         componentName: string,
-        folderName: string
+        folderName: string,
+        legacyAlias?: string
     ): void {
         const allMetadata = this.getAllMetadata();
-        const key = this.getKey(alias, metadataType, componentName);
+        const key = this.getResolvedKey(allMetadata, orgId, metadataType, componentName, legacyAlias);
         
         if (allMetadata[key]) {
             delete allMetadata[key][folderName];
@@ -105,11 +135,12 @@ export class BackupMetadataStorage {
     }
 
     getSortedBackups(
-        alias: string,
+        orgId: string,
         metadataType: string,
-        componentName: string
+        componentName: string,
+        legacyAlias?: string
     ): BackupMetadata[] {
-        const metadata = this.getBackupMetadata(alias, metadataType, componentName);
+        const metadata = this.getBackupMetadata(orgId, metadataType, componentName, legacyAlias);
         
         return Object.values(metadata).sort((a, b) => {
             // Locked backups first
@@ -122,12 +153,13 @@ export class BackupMetadataStorage {
     }
 
     getBackupsToDelete(
-        alias: string,
+        orgId: string,
         metadataType: string,
         componentName: string,
-        maxBackups: number
+        maxBackups: number,
+        legacyAlias?: string
     ): string[] {
-        const metadata = this.getBackupMetadata(alias, metadataType, componentName);
+        const metadata = this.getBackupMetadata(orgId, metadataType, componentName, legacyAlias);
         const backups = Object.entries(metadata);
         
         // Separate locked and unlocked
@@ -149,8 +181,37 @@ export class BackupMetadataStorage {
         return unlocked.slice(0, backupsToDelete).map(([folderName, _]) => folderName);
     }
 
-    private getKey(alias: string, metadataType: string, componentName: string): string {
+    private getKey(orgId: string, metadataType: string, componentName: string): string {
+        return `${orgId}:${metadataType}:${componentName}`;
+    }
+
+    private getLegacyKey(alias: string, metadataType: string, componentName: string): string {
         return `${alias}:${metadataType}:${componentName}`;
+    }
+
+    private getResolvedKey(
+        allMetadata: Record<string, Record<string, BackupMetadata>>,
+        orgId: string,
+        metadataType: string,
+        componentName: string,
+        legacyAlias?: string
+    ): string {
+        const key = this.getKey(orgId, metadataType, componentName);
+        if (allMetadata[key]) {
+            return key;
+        }
+
+        if (legacyAlias) {
+            const legacyKey = this.getLegacyKey(legacyAlias, metadataType, componentName);
+            if (allMetadata[legacyKey]) {
+                allMetadata[key] = allMetadata[legacyKey];
+                delete allMetadata[legacyKey];
+                this.saveAllMetadata(allMetadata);
+                return key;
+            }
+        }
+
+        return key;
     }
 
     private getAllMetadata(): Record<string, Record<string, BackupMetadata>> {

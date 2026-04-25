@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getMetadataInfo, fetchRetrieveableFiles } from '../utils/metadataUtils';
 import { retrieveOrgVersion, cleanupTempFile } from '../services/retrieveService';
-import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { buildLegacyRetrieveMapKey, buildRetrieveMapKey, getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { salesforceService } from '../services/salesforceService';
 
 export async function showDiffAndResolve(
@@ -104,8 +104,12 @@ export async function showDiffAndResolve(
             }
 
             const retrieveMap = getRetrieveMap(context);
-            retrieveMap.set(`${currentUser}:${metadataInfo.name}`, new Date());
-            saveRetrieveMap(context, retrieveMap);
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (currentOrgId) {
+                retrieveMap.set(buildRetrieveMapKey(currentOrgId, metadataInfo.type, metadataInfo.name), new Date());
+                retrieveMap.delete(buildLegacyRetrieveMapKey(currentUser, metadataInfo.name));
+                saveRetrieveMap(context, retrieveMap);
+            }
 
             vscode.window.showInformationMessage(`Local files updated with org version: ${metadataInfo.name}`);
             return true;
@@ -122,8 +126,12 @@ export async function showDiffAndResolve(
             );
 
             const retrieveMap = getRetrieveMap(context);
-            retrieveMap.set(`${currentUser}:${metadataInfo.name}`, new Date());
-            saveRetrieveMap(context, retrieveMap);
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (currentOrgId) {
+                retrieveMap.set(buildRetrieveMapKey(currentOrgId, metadataInfo.type, metadataInfo.name), new Date());
+                retrieveMap.delete(buildLegacyRetrieveMapKey(currentUser, metadataInfo.name));
+                saveRetrieveMap(context, retrieveMap);
+            }
 
             return false;
         }

@@ -13,7 +13,7 @@ export class BackupService {
         this.metadataStorage = new BackupMetadataStorage(context);
     }
 
-    backupDeployedFile(filePath: string, metadataInfo: MetadataInfo, currentAlias: string): boolean {
+    backupDeployedFile(filePath: string, metadataInfo: MetadataInfo, currentAlias: string, orgId: string): boolean {
         try {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
             
@@ -86,15 +86,16 @@ export class BackupService {
                 };
                 
                 this.metadataStorage.saveBackupMetadata(
-                    currentAlias,
+                    orgId,
                     metadataInfo.type,
                     metadataInfo.name,
                     timestamp,
-                    backupMetadata
+                    backupMetadata,
+                    currentAlias
                 );
 
                 // Cleanup old backups (respecting locks)
-                this.cleanupOldBackups(componentBackupDir, currentAlias, metadataInfo.type, metadataInfo.name);
+                this.cleanupOldBackups(componentBackupDir, orgId, currentAlias, metadataInfo.type, metadataInfo.name);
                 
                 console.log(`✅ Backup created: ${timestampBackupDir}`);
                 return true;
@@ -111,6 +112,7 @@ export class BackupService {
 
     private cleanupOldBackups(
         componentBackupDir: string,
+        orgId: string,
         alias: string,
         metadataType: string,
         componentName: string
@@ -122,10 +124,11 @@ export class BackupService {
 
             // Get folders to delete (respecting locks)
             const foldersToDelete = this.metadataStorage.getBackupsToDelete(
-                alias,
+                orgId,
                 metadataType,
                 componentName,
-                this.MAX_BACKUPS
+                this.MAX_BACKUPS,
+                alias
             );
 
             // Delete the folders
@@ -135,10 +138,11 @@ export class BackupService {
                 
                 // Delete metadata
                 this.metadataStorage.deleteBackupMetadata(
-                    alias,
+                    orgId,
                     metadataType,
                     componentName,
-                    folderName
+                    folderName,
+                    alias
                 );
                 
                 console.log(`🗑️ Deleted old backup: ${folderName}`);

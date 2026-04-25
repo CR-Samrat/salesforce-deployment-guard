@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { fetchRetrieveableFiles, getMetadataInfo } from '../utils/metadataUtils';
-import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { buildLegacyRetrieveMapKey, buildRetrieveMapKey, getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { retrieveService, salesforceService, sfGuardOutput } from '../services';
 
 export class TrackedRetrieveCommand {
@@ -48,9 +48,13 @@ export class TrackedRetrieveCommand {
 
             const retrieveMap = getRetrieveMap(this.context);
             const currentUser = await salesforceService.getCurrentUsername();
-            const key = `${currentUser?.username}:${metadataInfo.name}`;
-            retrieveMap.set(key, new Date());
-            saveRetrieveMap(this.context, retrieveMap);
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (currentUser?.username && currentOrgId) {
+                const key = buildRetrieveMapKey(currentOrgId, metadataInfo.type, metadataInfo.name);
+                retrieveMap.set(key, new Date());
+                retrieveMap.delete(buildLegacyRetrieveMapKey(currentUser.username, metadataInfo.name));
+                saveRetrieveMap(this.context, retrieveMap);
+            }
 
             const retrievedFiles = fetchRetrieveableFiles(metadataInfo, filePath);
             sfGuardOutput.section(`Retrieve Summary - ${metadataInfo.name}`);

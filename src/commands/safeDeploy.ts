@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { fetchRetrieveableFiles, getMetadataInfo } from '../utils/metadataUtils';
-import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { buildLegacyRetrieveMapKey, buildRetrieveMapKey, getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { showDiffAndResolve } from '../ui/diffViewer';
 import { ConflictInfo } from '../types/conflict';
 import { salesforceService, ConflictService, getBackupService, deployService, sfGuardOutput } from '../services';
@@ -115,7 +115,7 @@ export class SafeDeployCommand {
         try {
             const deployResult = await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Deploying ${fileName} to Salesforce...`,
+                title: `Deploying ${metadataInfo.name} to Salesforce...`,
                 cancellable: true
             }, async (_progress, token) => {
                 let cancelRequested = false;
@@ -151,17 +151,27 @@ export class SafeDeployCommand {
 
             const retrieveMap = getRetrieveMap(this.context);
             const currentUsername = salesforceService.getCachedUsername() || 'unknown_user';
-            retrieveMap.set(`${currentUsername}:${metadataInfo.name}`, new Date());
+            const currentOrgId = await salesforceService.getCurrentOrgId();
+            if (currentOrgId) {
+                const retrieveKey = buildRetrieveMapKey(currentOrgId, metadataInfo.type, metadataInfo.name);
+                retrieveMap.set(retrieveKey, new Date());
+                retrieveMap.delete(buildLegacyRetrieveMapKey(currentUsername, metadataInfo.name));
+            }
             saveRetrieveMap(this.context, retrieveMap);
             console.log(`Updated sync timestamp after deploy for ${metadataInfo.name}.`);
 
             const currentAlias = salesforceService.getCachedAlias() || 'unknown_alias';
-            if (currentAlias !== 'unknown_alias') {
-                const backupEnabled = this.backupPrefs.isBackupEnabled(currentAlias, metadataInfo.name);
+            if (currentAlias !== 'unknown_alias' && currentOrgId) {
+                const backupEnabled = this.backupPrefs.isBackupEnabled(
+                    currentOrgId,
+                    metadataInfo.type,
+                    metadataInfo.name,
+                    currentAlias
+                );
 
                 if (backupEnabled) {
                     const backupService = getBackupService();
-                    const backupCreated = backupService.backupDeployedFile(filePath, metadataInfo, currentAlias);
+                    const backupCreated = backupService.backupDeployedFile(filePath, metadataInfo, currentAlias, currentOrgId);
                     if (backupCreated) {
                         sfGuardOutput.info(`Created backup for deployed component ${metadataInfo.name} (${currentAlias}).`);
                     } else {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getRetrieveMap, saveRetrieveMap } from '../storage/retrieveMapStorage';
+import { getRetrieveMap, parseRetrieveMapKey, saveRetrieveMap } from '../storage/retrieveMapStorage';
 import { getTimeAgo } from '../utils/dateUtils';
 
 export class ViewSyncStatusCommand {
@@ -17,12 +17,20 @@ export class ViewSyncStatusCommand {
         
         // Convert map to array and sort by date
         const entries = Array.from(retrieveMap.entries())
-            .map(([fileName, timestamp]) => ({
+            .map(([key, timestamp]) => {
+                const parsedKey = parseRetrieveMapKey(key);
+                const fileName = parsedKey
+                    ? `${parsedKey.metadataType} / ${parsedKey.componentName}`
+                    : key;
+
+                return {
+                key,
                 fileName,
                 timestamp,
                 timeAgo: getTimeAgo(timestamp),
                 dateString: timestamp.toLocaleString()
-            }))
+            };
+            })
             .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
         
         // Create quick pick items
@@ -30,7 +38,7 @@ export class ViewSyncStatusCommand {
             label: `📄 ${entry.fileName}`,
             description: entry.timeAgo,
             detail: `Last synced: ${entry.dateString}`,
-            fileName: entry.fileName
+            fileName: entry.key
         } as any));
         
         // Add header item
