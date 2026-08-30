@@ -7,6 +7,14 @@ export interface MetadataInfo {
 }
 
 export function getMetadataInfo(filePath: string): MetadataInfo | null {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+        return getBundleMetadataFromFolder(filePath);
+    }
+
+    if (isManifestFile(filePath)) {
+        return { type: 'PackageManifest', name: path.basename(filePath) };
+    }
+
     const fileExt = path.extname(filePath).toLowerCase();
     const fileName = path.basename(filePath, fileExt);
 
@@ -61,6 +69,23 @@ export function getMetadataInfo(filePath: string): MetadataInfo | null {
     return null;
 }
 
+function getBundleMetadataFromFolder(folderPath: string): MetadataInfo | null {
+    const pathParts = folderPath.split(/[/\\]/);
+    const folderName = path.basename(folderPath);
+
+    const lwcIndex = pathParts.findIndex(part => part === 'lwc');
+    if (lwcIndex !== -1 && lwcIndex < pathParts.length - 1) {
+        return { type: 'LightningComponentBundle', name: folderName };
+    }
+
+    const auraIndex = pathParts.findIndex(part => part === 'aura');
+    if (auraIndex !== -1 && auraIndex < pathParts.length - 1) {
+        return { type: 'AuraDefinitionBundle', name: folderName };
+    }
+
+    return null;
+}
+
 function handleXmlMetadata(filePath: string): MetadataInfo | null {
     const fileName = path.basename(filePath);
     let metadataType = '';
@@ -97,6 +122,11 @@ function handleXmlMetadata(filePath: string): MetadataInfo | null {
     }
 
     return metadataType && componentName ? { type: metadataType, name: componentName } : null;
+}
+
+function isManifestFile(filePath: string): boolean {
+    const normalizedPath = filePath.replace(/\\/g, '/').toLowerCase();
+    return /\/manifest\/[^/]+\.xml$/.test(normalizedPath);
 }
 
 export function fetchRetrieveableFiles(metadataInfo: MetadataInfo, filePath: string): string[] {
@@ -136,6 +166,9 @@ export function fetchRetrieveableFiles(metadataInfo: MetadataInfo, filePath: str
         case "AuraDefinitionBundle":
             return getBundleFiles(filePath, 'Aura');
 
+        case "PackageManifest":
+            return [path.basename(filePath)];
+
         default:
             console.log(`📂 Unsupported metadata type: ${metadataInfo.type} - skipping backup`);
             return [];
@@ -144,7 +177,9 @@ export function fetchRetrieveableFiles(metadataInfo: MetadataInfo, filePath: str
 
 function getBundleFiles(filePath: string, bundleType: 'LWC' | 'Aura'): string[] {
     try {
-        const bundleDirPath = path.dirname(filePath);
+        const bundleDirPath = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()
+            ? filePath
+            : path.dirname(filePath);
     
         if (!fs.existsSync(bundleDirPath)) {
             console.log(`⚠️ Bundle directory not found: ${bundleDirPath}`);

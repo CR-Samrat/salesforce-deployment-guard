@@ -56,12 +56,19 @@ export class TrackedRetrieveCommand {
                 saveRetrieveMap(this.context, retrieveMap);
             }
 
-            const retrievedFiles = fetchRetrieveableFiles(metadataInfo, filePath);
             sfGuardOutput.section(`Retrieve Summary - ${metadataInfo.name}`);
             sfGuardOutput.info(`Component type: ${metadataInfo.type}`);
-            sfGuardOutput.info('Files retrieved:');
-            for (const retrievedFile of retrievedFiles) {
-                sfGuardOutput.info(`  - ${retrievedFile}`);
+            if (retrieveResult.retrievedComponents && retrieveResult.retrievedComponents.length > 0) {
+                sfGuardOutput.info('Components retrieved:');
+                for (const componentLine of retrieveResult.retrievedComponents) {
+                    sfGuardOutput.info(`  - ${componentLine}`);
+                }
+            } else {
+                const retrievedFiles = fetchRetrieveableFiles(metadataInfo, filePath);
+                sfGuardOutput.info('Files retrieved:');
+                for (const retrievedFile of retrievedFiles) {
+                    sfGuardOutput.info(`  - ${retrievedFile}`);
+                }
             }
 
             vscode.window.showInformationMessage(`Retrieved successfully: ${fileName}`);

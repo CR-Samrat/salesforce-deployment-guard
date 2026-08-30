@@ -11,6 +11,7 @@ export interface RetrieveResultSummary {
     success: boolean;
     message: string;
     details?: string[];
+    retrievedComponents?: string[];
 }
 
 export async function retrieveOrgVersion(filePath: string): Promise<string | null> {
@@ -128,15 +129,20 @@ export class RetrieveService {
         }
 
         const retrievePath = this.getRetrievePath(filePath, metadataInfo.type);
+        const outputDirectory = metadataInfo.type === 'PackageManifest'
+            ? this.getManifestOutputDirectory(projectDirectory)
+            : projectDirectory;
         console.log(`Resolved retrieve path for ${metadataInfo.name}: ${retrievePath}`);
 
-        const componentSet = ComponentSet.fromSource([retrievePath]);
+        const componentSet = metadataInfo.type === 'PackageManifest'
+            ? await ComponentSet.fromManifest(filePath)
+            : ComponentSet.fromSource([retrievePath]);
         componentSet.projectDirectory = projectDirectory;
 
         const retrieve = await componentSet.retrieve({
             usernameOrConnection: connection,
             merge: true,
-            output: projectDirectory
+            output: outputDirectory
         });
 
         const result = await retrieve.pollStatus();
@@ -145,9 +151,11 @@ export class RetrieveService {
                 ? result.response.fileProperties.length
                 : 1;
             sfGuardOutput.info(`Retrieve succeeded for ${metadataInfo.name}. Retrieved file entries: ${fileProps}.`);
+            const retrievedComponents = this.collectRetrievedComponents(result.response.fileProperties);
             return {
                 success: true,
-                message: `Successfully retrieved ${metadataInfo.name}.`
+                message: `Successfully retrieved ${metadataInfo.name}.`,
+                retrievedComponents
             };
         }
 
@@ -341,6 +349,28 @@ export class RetrieveService {
         return null;
     }
 
+    private getManifestOutputDirectory(projectDirectory: string): string {
+        try {
+            const projectConfigPath = path.join(projectDirectory, 'sfdx-project.json');
+            const rawConfig = fs.readFileSync(projectConfigPath, 'utf8');
+            const projectConfig = JSON.parse(rawConfig) as {
+                packageDirectories?: Array<{ path?: string; default?: boolean }>;
+            };
+
+            const defaultPackageDirectory = projectConfig.packageDirectories?.find((entry) => entry.default)
+                ?? projectConfig.packageDirectories?.[0];
+
+            if (defaultPackageDirectory?.path) {
+                return path.join(projectDirectory, defaultPackageDirectory.path);
+            }
+        } catch (error) {
+            const errorText = error instanceof Error ? error.message : String(error);
+            sfGuardOutput.warn(`Could not resolve default package directory from sfdx-project.json. ${errorText}`);
+        }
+
+        return projectDirectory;
+    }
+
     private tryCleanupTempDir(tempDir: string): void {
         try {
             fs.rmSync(tempDir, { recursive: true, force: true });
@@ -357,6 +387,31 @@ export class RetrieveService {
 
         const messageList = Array.isArray(messages) ? messages : [messages];
         return messageList.map((message) => `${message.fileName} - ${message.problem}`);
+    }
+
+    private collectRetrievedComponents(fileProperties: unknown): string[] {
+        if (!Array.isArray(fileProperties)) {
+            return [];
+        }
+
+        const componentLines = new Set<string>();
+
+        for (const entry of fileProperties) {
+            const fileProperty = entry as {
+                type?: string;
+                fullName?: string;
+                fileName?: string;
+            };
+
+            if (!fileProperty.type) {
+                continue;
+            }
+
+            const componentName = fileProperty.fullName || fileProperty.fileName || 'Unknown';
+            componentLines.add(`${fileProperty.type}: ${componentName}`);
+        }
+
+        return Array.from(componentLines);
     }
 }
 

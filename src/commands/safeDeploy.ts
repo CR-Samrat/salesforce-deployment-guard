@@ -16,16 +16,16 @@ export class SafeDeployCommand {
         this.backupPrefs = new BackupPreferences(context);
     }
 
-    async execute(): Promise<void> {
+    async execute(uri?: vscode.Uri): Promise<void> {
         const editor = vscode.window.activeTextEditor;
+        const filePath = uri?.fsPath || editor?.document.fileName;
 
-        if (!editor) {
+        if (!filePath) {
             vscode.window.showErrorMessage('No file is open');
-            sfGuardOutput.warn('Deploy aborted because no active editor was found.');
+            sfGuardOutput.warn('Deploy aborted because no active editor or resource was found.');
             return;
         }
 
-        const filePath = editor.document.fileName;
         const fileName = path.basename(filePath);
 
         const metadataInfo = getMetadataInfo(filePath);
@@ -37,7 +37,7 @@ export class SafeDeployCommand {
 
         sfGuardOutput.info(`Starting safe deploy for ${metadataInfo.type} ${metadataInfo.name} (${fileName}).`);
 
-        if (editor.document.isDirty) {
+        if (editor && editor.document.fileName === filePath && editor.document.isDirty) {
             await editor.document.save();
             sfGuardOutput.info(`Saved dirty editor before deploy: ${fileName}`);
         }

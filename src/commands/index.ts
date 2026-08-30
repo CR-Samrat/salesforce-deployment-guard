@@ -11,7 +11,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.safeDeploy',
-            () => safeDeploy.execute()
+            (uri?: vscode.Uri) => safeDeploy.execute(uri)
         )
     );
 
@@ -19,6 +19,12 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.retrieve',
+            (uri?: vscode.Uri) => trackedRetrieve.execute(uri)
+        )
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'salesforce-deployment-guard.retrieveManifest',
             (uri?: vscode.Uri) => trackedRetrieve.execute(uri)
         )
     );
