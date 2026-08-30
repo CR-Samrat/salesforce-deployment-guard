@@ -73,7 +73,7 @@
       "explorer/context": [
         {
           "command": "salesforce-deployment-guard.retrieve",
-          "when": "!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/) || (explorerResourceIsFolder && resourcePath =~ /[\\\\/](lwc|aura)[\\\\/][^\\\\/]+$/))",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/ || (explorerResourceIsFolder && resourcePath =~ /[\\\\/](lwc|aura)[\\\\/][^\\\\/]+$/)",
           "group": "salesforce@1"
         },
         {
@@ -83,29 +83,29 @@
         },
         {
           "command": "salesforce-deployment-guard.safeDeploy",
-          "when": "!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/) || (explorerResourceIsFolder && resourcePath =~ /[\\\\/](lwc|aura)[\\\\/][^\\\\/]+$/))",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/ || (explorerResourceIsFolder && resourcePath =~ /[\\\\/](lwc|aura)[\\\\/][^\\\\/]+$/)",
           "group": "salesforce@2"
         },
         {
           "command": "salesforce-deployment-guard.toggleBackup",
-          "when": "!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/))",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@3"
         },
         {
           "command": "salesforce-deployment-guard.takeBackup",
-          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || (!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)))",
+          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@4"
         },
         {
           "command": "salesforce-deployment-guard.compareBackup",
-          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || (!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)))",
+          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@5"
         }
       ],
       "editor/context": [
         {
           "command": "salesforce-deployment-guard.retrieve",
-          "when": "!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/))",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@1"
         },
         {
@@ -115,29 +115,29 @@
         },
         {
           "command": "salesforce-deployment-guard.safeDeploy",
-          "when": "!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/))",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@2"
         },
         {
           "command": "salesforce-deployment-guard.toggleBackup",
-          "when": "!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/))",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@3"
         },
         {
           "command": "salesforce-deployment-guard.takeBackup",
-          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || (!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)))",
+          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@4"
         },
         {
           "command": "salesforce-deployment-guard.compareBackup",
-          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || (!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)))",
+          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "salesforce@5"
         }
       ],
       "editor/title": [
         {
           "command": "salesforce-deployment-guard.compareBackup",
-          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || (!(resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/) && (resourceExtname =~ /\\.(cls|trigger|apex|page|component|cmp|app|evt|intf|auradoc|design|svg|tokens|xml)$/ || (resourceExtname =~ /\\.(js|html|css)$/ && resourcePath =~ /(lwc|aura)/)))",
+          "when": "resourcePath =~ /[\\\\/]manifest[\\\\/][^\\\\/]+\\.xml$/ || resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
           "group": "navigation"
         }
       ]

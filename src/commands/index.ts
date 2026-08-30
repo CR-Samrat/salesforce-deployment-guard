@@ -5,13 +5,17 @@ import { ViewSyncStatusCommand } from './viewSyncStatus';
 import { CompareBackupCommand } from './compareBackup';
 import { ToggleBackupCommand } from './toggleBackup';
 import { TakeBackupCommand } from './takeBackup';
+import { sfGuardOutput } from '../services';
 
 export function registerCommands(context: vscode.ExtensionContext): void {
     const safeDeploy = new SafeDeployCommand(context);
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.safeDeploy',
-            (uri?: vscode.Uri) => safeDeploy.execute(uri)
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return safeDeploy.execute(uri);
+            }
         )
     );
 
@@ -19,13 +23,19 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.retrieve',
-            (uri?: vscode.Uri) => trackedRetrieve.execute(uri)
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return trackedRetrieve.execute(uri);
+            }
         )
     );
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.retrieveManifest',
-            (uri?: vscode.Uri) => trackedRetrieve.execute(uri)
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return trackedRetrieve.execute(uri);
+            }
         )
     );
 
@@ -33,7 +43,10 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.viewSyncStatus',
-            () => viewSyncStatus.execute()
+            () => {
+                sfGuardOutput.show(false);
+                return viewSyncStatus.execute();
+            }
         )
     );
 
@@ -41,7 +54,10 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.compareBackup',
-            (uri?: vscode.Uri) => compareBackup.execute(uri)
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return compareBackup.execute(uri);
+            }
         )
     );
 
@@ -49,7 +65,10 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.toggleBackup',
-            (uri?: vscode.Uri) => toggleBackup.execute(uri)
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return toggleBackup.execute(uri);
+            }
         )
     );
 
@@ -57,7 +76,10 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.takeBackup',
-            (uri?: vscode.Uri) => takeBackup.execute(uri)
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return takeBackup.execute(uri);
+            }
         )
     );
 
