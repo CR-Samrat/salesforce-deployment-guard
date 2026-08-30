@@ -2,6 +2,22 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [1.0.0] - 2026-08-30
+
+### Added
+- Manifest-based retrieval through `SF Guard: Retrieve Source in Manifest From Org`
+- Manifest backup and backup comparison support
+- Detailed manifest retrieval summaries that list the retrieved metadata types and component names
+
+### Changed
+- Manifest retrieval now writes source into the project's default package directory instead of creating a parallel source tree
+- SF Guard context-menu actions are now shown only for supported metadata types, keeping unsupported metadata such as object fields, layouts, and FlexiPages uncluttered
+- The `SF Guard` Output channel now automatically becomes active whenever an SF Guard command runs
+
+### Fixed
+- Manifest XML files are correctly recognized regardless of their filename when stored in a `manifest` folder
+- VS Code menu `when` clauses have been simplified to avoid parser errors and unsupported command visibility
+
 ## [0.9.0] - 2026-04-25
 
 ### Added
