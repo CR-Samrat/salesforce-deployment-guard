@@ -2,6 +2,11 @@
 
 All notable changes to the "Salesforce Deployment Guard" extension will be documented in this file.
 
+## [1.0.1] - 2026-09-15
+
+### Fixed
+- Resolved an issue with the SF Guard: View Sync Status command where the view would open and immediately close. The command now stays open and displays the sync status as intended.
+
 ## [1.0.0] - 2026-08-30
 
 ### Added

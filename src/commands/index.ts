@@ -44,7 +44,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.viewSyncStatus',
             () => {
-                sfGuardOutput.show(false);
+                //sfGuardOutput.show(false);
                 return viewSyncStatus.execute();
             }
         )

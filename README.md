@@ -3,7 +3,7 @@
 > Conflict-aware Salesforce source deployment, retrieval, and local backup protection for VS Code.
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
+[![Version](https://img.shields.io/badge/version-1.0.1-green)](https://marketplace.visualstudio.com/items?itemName=SubhadeepDev.salesforce-deployment-guard)
 [![Source](https://img.shields.io/badge/source-GitHub-black)](https://github.com/CR-Samrat/salesforce-deployment-guard)
 
 SF Guard helps Salesforce developers avoid accidental source overwrites. Before deployment, it checks whether the component changed in the org after the last known sync, presents a visual comparison when a conflict is found, and can retain local backup versions for recovery.
