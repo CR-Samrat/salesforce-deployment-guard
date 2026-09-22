@@ -49,6 +49,11 @@
         "icon": "$(shield)"
       },
       {
+        "command": "salesforce-deployment-guard.batchDeploy",
+        "title": "SF Guard: Batch Deployment",
+        "icon": "$(layers)"
+      },
+      {
         "command": "salesforce-deployment-guard.viewSyncStatus",
         "title": "SF Guard: View Sync Status",
         "icon": "$(info)"
@@ -71,6 +76,11 @@
     ],
     "menus": {
       "explorer/context": [
+        {
+          "command": "salesforce-deployment-guard.batchDeploy",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/ || (explorerResourceIsFolder && resourcePath =~ /[\\\\/](lwc|aura)[\\\\/][^\\\\/]+$/)",
+          "group": "salesforce@2"
+        },
         {
           "command": "salesforce-deployment-guard.retrieve",
           "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/ || (explorerResourceIsFolder && resourcePath =~ /[\\\\/](lwc|aura)[\\\\/][^\\\\/]+$/)",
@@ -103,6 +113,11 @@
         }
       ],
       "editor/context": [
+        {
+          "command": "salesforce-deployment-guard.batchDeploy",
+          "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",
+          "group": "salesforce@2"
+        },
         {
           "command": "salesforce-deployment-guard.retrieve",
           "when": "resourcePath =~ /[\\\\/]classes[\\\\/][^\\\\/]+\\.(cls|cls-meta\\.xml)$/ || resourcePath =~ /[\\\\/]triggers[\\\\/][^\\\\/]+\\.(trigger|trigger-meta\\.xml)$/ || resourcePath =~ /[\\\\/]pages[\\\\/][^\\\\/]+\\.(page|apex|page-meta\\.xml)$/ || resourcePath =~ /[\\\\/]components[\\\\/][^\\\\/]+\\.(component|component-meta\\.xml)$/ || resourcePath =~ /[\\\\/]lwc[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(html|js|css|svg|xml)$/ || resourcePath =~ /[\\\\/]aura[\\\\/][^\\\\/]+[\\\\/][^\\\\/]+\\.(cmp|app|evt|intf|auradoc|design|svg|tokens|js|css|xml)$/",

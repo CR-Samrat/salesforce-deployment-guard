@@ -5,6 +5,7 @@ import { ViewSyncStatusCommand } from './viewSyncStatus';
 import { CompareBackupCommand } from './compareBackup';
 import { ToggleBackupCommand } from './toggleBackup';
 import { TakeBackupCommand } from './takeBackup';
+import { BatchDeployCommand } from './batchDeploy';
 import { sfGuardOutput } from '../services';
 
 export function registerCommands(context: vscode.ExtensionContext): void {
@@ -15,6 +16,17 @@ export function registerCommands(context: vscode.ExtensionContext): void {
             (uri?: vscode.Uri) => {
                 sfGuardOutput.show(false);
                 return safeDeploy.execute(uri);
+            }
+        )
+    );
+
+    const batchDeploy = new BatchDeployCommand();
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'salesforce-deployment-guard.batchDeploy',
+            (uri?: vscode.Uri) => {
+                sfGuardOutput.show(false);
+                return batchDeploy.execute(uri);
             }
         )
     );
