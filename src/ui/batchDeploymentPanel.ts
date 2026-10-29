@@ -24,6 +24,7 @@ export function showBatchDeploymentResults(results: BatchDeploymentResult[]): vo
 function renderResults(results: BatchDeploymentResult[]): string {
     const successCount = results.filter((result) => result.status === 'success').length;
     const failedCount = results.filter((result) => result.status === 'failed').length;
+    const conflictCount = results.filter((result) => result.status === 'conflict').length;
     const cancelledCount = results.filter((result) => result.status === 'cancelled').length;
 
     const rows = results.map((result) => `
@@ -53,6 +54,7 @@ function renderResults(results: BatchDeploymentResult[]): string {
         .status { font-weight: 600; text-transform: capitalize; }
         .success { color: var(--vscode-testing-iconPassed); }
         .failed { color: var(--vscode-testing-iconFailed); }
+        .conflict { color: var(--vscode-editorWarning-foreground); }
         .cancelled { color: var(--vscode-descriptionForeground); }
         details { margin-top: 6px; }
         pre { white-space: pre-wrap; margin: 6px 0 0; font-family: var(--vscode-editor-font-family); }
@@ -60,7 +62,7 @@ function renderResults(results: BatchDeploymentResult[]): string {
 </head>
 <body>
     <h1>Batch Deployment Results</h1>
-    <div class="summary">${successCount} successful, ${failedCount} failed, ${cancelledCount} cancelled</div>
+    <div class="summary">${successCount} successful, ${failedCount} failed, ${conflictCount} conflicts skipped, ${cancelledCount} cancelled</div>
     <table>
         <thead><tr><th>Component / File</th><th>Metadata Type</th><th>Status</th><th>Result</th></tr></thead>
         <tbody>${rows}</tbody>

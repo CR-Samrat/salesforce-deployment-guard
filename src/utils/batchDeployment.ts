@@ -15,7 +15,7 @@ export interface BatchDeploymentItem {
     metadataInfo: MetadataInfo;
 }
 
-export type BatchDeploymentStatus = 'success' | 'failed' | 'cancelled';
+export type BatchDeploymentStatus = 'success' | 'failed' | 'conflict' | 'cancelled';
 
 export interface BatchDeploymentResult {
     filePath: string;

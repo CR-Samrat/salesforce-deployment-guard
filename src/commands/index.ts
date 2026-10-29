@@ -20,7 +20,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         )
     );
 
-    const batchDeploy = new BatchDeployCommand();
+    const batchDeploy = new BatchDeployCommand(context);
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'salesforce-deployment-guard.batchDeploy',

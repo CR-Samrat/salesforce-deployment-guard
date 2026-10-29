@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as vscode from 'vscode';
-import { deployService, sfGuardOutput } from '../services';
+import { ConflictService, deployService, sfGuardOutput } from '../services';
 import { showBatchDeploymentResults, showBatchDeploymentSelector } from '../ui';
 import {
     BatchDeploymentResult,
@@ -11,6 +11,12 @@ import {
 } from '../utils/batchDeployment';
 
 export class BatchDeployCommand {
+    private readonly conflictService: ConflictService;
+
+    constructor(context: vscode.ExtensionContext) {
+        this.conflictService = new ConflictService(context);
+    }
+
     async execute(uri?: vscode.Uri): Promise<void> {
         const availableUris = await this.findPackageSourceFiles();
         const availableItems = normalizeBatchSelections(availableUris.map((item) => item.fsPath));
@@ -90,6 +96,26 @@ export class BatchDeployCommand {
                 }
 
                 try {
+                    const conflictInfo = await this.conflictService.checkForConflicts(item.filePath, {
+                        suppressErrors: true
+                    });
+                    if (conflictInfo.hasConflict) {
+                        results.push({
+                            filePath: item.filePath,
+                            metadataType: item.metadataInfo.type,
+                            componentName: item.metadataInfo.name,
+                            status: 'conflict',
+                            message: 'Conflict - Potential Overwrite',
+                            details: [
+                                conflictInfo.reason || 'The Salesforce org version was modified after the last retrieve.',
+                                `Modified by: ${conflictInfo.modifiedBy || 'Unknown'}`,
+                                `Modified on: ${conflictInfo.modifiedDate || 'Unknown'}`
+                            ]
+                        });
+                        sfGuardOutput.warn(`Skipped ${item.metadataInfo.name}: Conflict - Potential Overwrite.`);
+                        continue;
+                    }
+
                     const deployResult = await deployService.deploy(item.filePath, {
                         onCancelRequested: (cancel) => {
                             cancelCurrentDeployment = cancel;
@@ -117,8 +143,9 @@ export class BatchDeployCommand {
 
         const successCount = results.filter((result) => result.status === 'success').length;
         const failedCount = results.filter((result) => result.status === 'failed').length;
+        const conflictCount = results.filter((result) => result.status === 'conflict').length;
         sfGuardOutput.section('Batch Deployment Summary');
-        sfGuardOutput.info(`Successful: ${successCount}. Failed: ${failedCount}. Cancelled: ${results.length - successCount - failedCount}.`);
+        sfGuardOutput.info(`Successful: ${successCount}. Failed: ${failedCount}. Conflicts skipped: ${conflictCount}. Cancelled: ${results.length - successCount - failedCount - conflictCount}.`);
         showBatchDeploymentResults(results);
     }
 

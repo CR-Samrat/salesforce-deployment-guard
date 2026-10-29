@@ -23,7 +23,7 @@ export class ConflictService {
 
     constructor(private context: vscode.ExtensionContext) {}
 
-    async checkForConflicts(filePath: string): Promise<ConflictInfo> {
+    async checkForConflicts(filePath: string, options?: { suppressErrors?: boolean }): Promise<ConflictInfo> {
         try {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
@@ -148,7 +148,9 @@ export class ConflictService {
         } catch (error) {
             const errorText = error instanceof Error ? error.message : String(error);
             sfGuardOutput.error(`Error checking conflicts for ${filePath}. ${errorText}`);
-            vscode.window.showErrorMessage(`Error checking conflicts: ${errorText}`);
+            if (!options?.suppressErrors) {
+                vscode.window.showErrorMessage(`Error checking conflicts: ${errorText}`);
+            }
             return { hasConflict: false };
         }
     }
